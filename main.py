@@ -3,8 +3,11 @@ import anthropic
 import time
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
 client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
@@ -30,6 +33,7 @@ options.add_argument('--window-size=1920,1080')
 
 service = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service, options=options)
+wait = WebDriverWait(driver, 15)
 
 driver.get("https://note.com/login")
 time.sleep(5)
@@ -37,11 +41,18 @@ time.sleep(5)
 inputs = driver.find_elements(By.TAG_NAME, "input")
 inputs[0].send_keys(os.environ["NOTE_EMAIL"])
 inputs[1].send_keys(os.environ["NOTE_PASSWORD"])
+inputs[1].send_keys(Keys.RETURN)
+time.sleep(8)
 
-# 全ボタンのテキストを入力後に再確認
-buttons = driver.find_elements(By.TAG_NAME, "button")
-print(f"ボタン数: {len(buttons)}")
-for i, btn in enumerate(buttons):
-    print(f"button[{i}]: text='{btn.text}' visible={btn.is_displayed()}")
+print(f"ログイン後URL: {driver.current_url}")
+
+driver.get("https://note.com/notes/new")
+time.sleep(8)
+
+print(f"記事作成ページURL: {driver.current_url}")
+
+inputs = driver.find_elements(By.TAG_NAME, "input")
+editables = driver.find_elements(By.XPATH, "//*[@contenteditable='true']")
+print(f"input数: {len(inputs)}, editable数: {len(editables)}")
 
 driver.quit()
