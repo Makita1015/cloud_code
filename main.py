@@ -33,9 +33,11 @@ wait = WebDriverWait(driver, 15)
 
 driver.get("https://note.com")
 time.sleep(2)
+print(f"現在のURL: {driver.current_url}")
+print(f"NOTE_SESSION: {os.environ.get('NOTE_SESSION', 'なし')[:10]}...")
+print(f"NOTE_VID: {os.environ.get('NOTE_VID', 'なし')[:10]}...")
 driver.add_cookie({"name": "_note_session_v5", "value": os.environ["NOTE_SESSION"], "domain": ".note.com"})
 driver.add_cookie({"name": "_vid_v1", "value": os.environ["NOTE_VID"], "domain": ".note.com"})
-
 driver.get("https://note.com/notes/new")
 time.sleep(6)
 
