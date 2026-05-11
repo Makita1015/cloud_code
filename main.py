@@ -27,7 +27,7 @@ content = message.content[0].text.strip()
 lines = content.split("\n")
 title = lines[0].replace("#", "").strip()
 body = "\n".join(lines[1:]).strip()
-
+title = f"今日のAIニュースまとめ（{datetime.now(JST).strftime('%Y年%m月%d日')}）"
 frontmatter = f"""---
 title: "{title}"
 emoji: "🤖"
