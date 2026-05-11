@@ -1,27 +1,33 @@
-name: AI記事を毎日ノートに自動投稿
+name: Zenn AI記事を毎日自動投稿
 
 on:
   schedule:
-    - cron: '0 13 * * *'
+    - cron: '0 13 * * *'  # 22:00 JST
   workflow_dispatch:
 
 jobs:
   post:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install Chrome
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
-      - run: pip install -r requirements.txt
-      - run: python main.py
+
+      - run: pip install anthropic
+
+      - name: 記事を生成
+        run: python main.py
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          NOTE_EMAIL: ${{ secrets.NOTE_EMAIL }}
-          NOTE_PASSWORD: ${{ secrets.NOTE_PASSWORD }}
-          NOTE_SESSION: ${{ secrets.NOTE_SESSION }}
-          NOTE_VID: ${{ secrets.NOTE_VID }}
+
+      - name: GitにcommitしてPush
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add articles/
+          git diff --cached --quiet || git commit -m "Add AI news article $(date +'%Y-%m-%d')"
+          git push
