@@ -41,10 +41,23 @@ inputs = driver.find_elements(By.TAG_NAME, "input")
 inputs[0].send_keys(os.environ["NOTE_EMAIL"])
 inputs[1].send_keys(os.environ["NOTE_PASSWORD"])
 
-# ボタンを全部出力して確認
-buttons = driver.find_elements(By.TAG_NAME, "button")
-print(f"ボタンの数: {len(buttons)}")
-for i, btn in enumerate(buttons):
-    print(f"button[{i}]: text={btn.text} type={btn.get_attribute('type')}")
+driver.find_element(By.XPATH, "//button[text()='ログイン']").click()
+time.sleep(5)
 
+driver.get("https://note.com/notes/new")
+time.sleep(5)
+
+title_input = wait.until(EC.presence_of_element_located((By.XPATH, "//input[contains(@placeholder,'タイトル')]")))
+title_input.send_keys(title)
+
+body_input = driver.find_element(By.XPATH, "//div[@contenteditable='true']")
+body_input.send_keys(body)
+time.sleep(1)
+
+driver.find_element(By.XPATH, "//button[contains(text(),'公開')]").click()
+time.sleep(2)
+driver.find_element(By.XPATH, "//button[contains(text(),'公開する')]").click()
+time.sleep(2)
+
+print("投稿完了")
 driver.quit()
