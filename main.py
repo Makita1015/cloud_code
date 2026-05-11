@@ -1,6 +1,9 @@
 import os
 import anthropic
-import requests
+import time
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 
 client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
@@ -17,12 +20,32 @@ lines = content.strip().split('\n')
 title = lines[0].replace('#', '').strip()
 body = '\n'.join(lines[1:]).strip()
 
-session = requests.Session()
-login_url = "https://note.com/api/v1/sessions/sign_in"
-payload = {"login": os.environ["NOTE_EMAIL"], "password": os.environ["NOTE_PASSWORD"]}
-session.post(login_url, json=payload)
+options = Options()
+options.add_argument('--headless')
+options.add_argument('--no-sandbox')
+options.add_argument('--disable-dev-shm-usage')
 
-post_url = "https://note.com/api/v1/text_notes"
-data = {"title": title, "body": body, "status": "published"}
-session.post(post_url, json=data)
+driver = webdriver.Chrome(options=options)
+
+driver.get("https://note.com/login")
+time.sleep(2)
+
+driver.find_element(By.NAME, "email").send_keys(os.environ["NOTE_EMAIL"])
+driver.find_element(By.NAME, "password").send_keys(os.environ["NOTE_PASSWORD"])
+driver.find_element(By.XPATH, "//button[@type='submit']").click()
+time.sleep(3)
+
+driver.get("https://note.com/notes/new")
+time.sleep(2)
+
+driver.find_element(By.XPATH, "//input[@placeholder='記事タイトル']").send_keys(title)
+driver.find_element(By.XPATH, "//div[@contenteditable='true']").send_keys(body)
+time.sleep(1)
+
+driver.find_element(By.XPATH, "//button[contains(text(),'公開')]").click()
+time.sleep(2)
+driver.find_element(By.XPATH, "//button[contains(text(),'公開する')]").click()
+time.sleep(2)
+
 print("投稿完了")
+driver.quit()
