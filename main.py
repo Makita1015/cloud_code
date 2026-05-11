@@ -41,7 +41,7 @@ driver.execute_script(f"document.cookie='_note_session_v5={cookie_str}; domain=.
 vid_str = os.environ["NOTE_VID"]
 driver.execute_script(f"document.cookie='_vid_v1={vid_str}; domain=.note.com; path=/'")
 driver.get("https://note.com/notes/new")
-time.sleep(6)
+time.sleep(15)
 
 editables = driver.find_elements(By.XPATH, "//*[@contenteditable='true']")
 print(f"editable数: {len(editables)}")
