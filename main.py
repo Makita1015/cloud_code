@@ -39,23 +39,14 @@ inputs[0].send_keys(os.environ["NOTE_EMAIL"])
 inputs[1].send_keys(os.environ["NOTE_PASSWORD"])
 buttons = driver.find_elements(By.TAG_NAME, "button")
 buttons[3].click()
-time.sleep(5)
+time.sleep(8)
+
+print(f"ログイン後URL: {driver.current_url}")
 
 driver.get("https://note.com/notes/new")
-time.sleep(5)
+time.sleep(8)
 
-# 全inputとtextareaを確認
-inputs = driver.find_elements(By.TAG_NAME, "input")
-print(f"input数: {len(inputs)}")
-for i, inp in enumerate(inputs):
-    print(f"input[{i}]: placeholder={inp.get_attribute('placeholder')}")
-
-textareas = driver.find_elements(By.TAG_NAME, "textarea")
-print(f"textarea数: {len(textareas)}")
-
-editables = driver.find_elements(By.XPATH, "//*[@contenteditable='true']")
-print(f"contenteditable数: {len(editables)}")
-for i, e in enumerate(editables):
-    print(f"editable[{i}]: tag={e.tag_name} class={e.get_attribute('class')[:50]}")
+print(f"記事作成ページURL: {driver.current_url}")
+print(driver.page_source[2000:4000])
 
 driver.quit()
