@@ -4,6 +4,8 @@ import time
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 
 client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
@@ -25,10 +27,11 @@ options.add_argument('--headless')
 options.add_argument('--no-sandbox')
 options.add_argument('--disable-dev-shm-usage')
 
-driver = webdriver.Chrome(options=options)
+service = Service(ChromeDriverManager().install())
+driver = webdriver.Chrome(service=service, options=options)
 
 driver.get("https://note.com/login")
-time.sleep(2)
+time.sleep(3)
 
 driver.find_element(By.NAME, "email").send_keys(os.environ["NOTE_EMAIL"])
 driver.find_element(By.NAME, "password").send_keys(os.environ["NOTE_PASSWORD"])
@@ -36,7 +39,7 @@ driver.find_element(By.XPATH, "//button[@type='submit']").click()
 time.sleep(3)
 
 driver.get("https://note.com/notes/new")
-time.sleep(2)
+time.sleep(3)
 
 driver.find_element(By.XPATH, "//input[@placeholder='記事タイトル']").send_keys(title)
 driver.find_element(By.XPATH, "//div[@contenteditable='true']").send_keys(body)
