@@ -1,4 +1,4 @@
-name: Auto-post AI articles to Note daily
+name: AI記事を毎日ノートに自動投稿
 
 on:
   schedule:
@@ -9,10 +9,14 @@ jobs:
   post:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
       - run: pip install -r requirements.txt
       - run: python main.py
         env:
