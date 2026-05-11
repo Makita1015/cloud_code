@@ -37,10 +37,27 @@ wait = WebDriverWait(driver, 15)
 driver.get("https://note.com/login")
 time.sleep(5)
 
-# 全inputを探して出力
 inputs = driver.find_elements(By.TAG_NAME, "input")
-print(f"入力欄の数: {len(inputs)}")
-for i, inp in enumerate(inputs):
-    print(f"input[{i}]: type={inp.get_attribute('type')} name={inp.get_attribute('name')} placeholder={inp.get_attribute('placeholder')}")
+inputs[0].send_keys(os.environ["NOTE_EMAIL"])
+inputs[1].send_keys(os.environ["NOTE_PASSWORD"])
 
+driver.find_element(By.XPATH, "//button[@type='submit']").click()
+time.sleep(5)
+
+driver.get("https://note.com/notes/new")
+time.sleep(5)
+
+title_input = wait.until(EC.presence_of_element_located((By.XPATH, "//input[contains(@placeholder,'タイトル')]")))
+title_input.send_keys(title)
+
+body_input = driver.find_element(By.XPATH, "//div[@contenteditable='true']")
+body_input.send_keys(body)
+time.sleep(1)
+
+driver.find_element(By.XPATH, "//button[contains(text(),'公開')]").click()
+time.sleep(2)
+driver.find_element(By.XPATH, "//button[contains(text(),'公開する')]").click()
+time.sleep(2)
+
+print("投稿完了")
 driver.quit()
