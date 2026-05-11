@@ -30,9 +30,14 @@ options.add_argument('--headless')
 options.add_argument('--no-sandbox')
 options.add_argument('--disable-dev-shm-usage')
 options.add_argument('--window-size=1920,1080')
+options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+options.add_experimental_option("excludeSwitches", ["enable-automation"])
+options.add_experimental_option('useAutomationExtension', False)
 
 service = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service, options=options)
+driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+
 wait = WebDriverWait(driver, 15)
 
 driver.get("https://note.com/login")
@@ -46,13 +51,13 @@ time.sleep(8)
 
 print(f"ログイン後URL: {driver.current_url}")
 
-driver.get("https://note.com/notes/new")
-time.sleep(8)
-
-print(f"記事作成ページURL: {driver.current_url}")
-
-inputs = driver.find_elements(By.TAG_NAME, "input")
-editables = driver.find_elements(By.XPATH, "//*[@contenteditable='true']")
-print(f"input数: {len(inputs)}, editable数: {len(editables)}")
+if "login" not in driver.current_url:
+    driver.get("https://note.com/notes/new")
+    time.sleep(8)
+    print(f"記事作成ページURL: {driver.current_url}")
+    editables = driver.find_elements(By.XPATH, "//*[@contenteditable='true']")
+    print(f"editable数: {len(editables)}")
+else:
+    print("ログイン失敗")
 
 driver.quit()
