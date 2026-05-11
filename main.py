@@ -41,7 +41,8 @@ inputs = driver.find_elements(By.TAG_NAME, "input")
 inputs[0].send_keys(os.environ["NOTE_EMAIL"])
 inputs[1].send_keys(os.environ["NOTE_PASSWORD"])
 
-driver.find_element(By.XPATH, "//button[text()='ログイン']").click()
+buttons = driver.find_elements(By.TAG_NAME, "button")
+buttons[3].click()
 time.sleep(5)
 
 driver.get("https://note.com/notes/new")
