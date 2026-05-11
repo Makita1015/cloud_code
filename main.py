@@ -37,16 +37,11 @@ time.sleep(5)
 inputs = driver.find_elements(By.TAG_NAME, "input")
 inputs[0].send_keys(os.environ["NOTE_EMAIL"])
 inputs[1].send_keys(os.environ["NOTE_PASSWORD"])
+
+# 全ボタンのテキストを入力後に再確認
 buttons = driver.find_elements(By.TAG_NAME, "button")
-buttons[3].click()
-time.sleep(8)
-
-print(f"ログイン後URL: {driver.current_url}")
-
-driver.get("https://note.com/notes/new")
-time.sleep(8)
-
-print(f"記事作成ページURL: {driver.current_url}")
-print(driver.page_source[2000:4000])
+print(f"ボタン数: {len(buttons)}")
+for i, btn in enumerate(buttons):
+    print(f"button[{i}]: text='{btn.text}' visible={btn.is_displayed()}")
 
 driver.quit()
