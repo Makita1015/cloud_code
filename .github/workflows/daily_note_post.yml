@@ -23,3 +23,5 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           NOTE_EMAIL: ${{ secrets.NOTE_EMAIL }}
           NOTE_PASSWORD: ${{ secrets.NOTE_PASSWORD }}
+          NOTE_SESSION: ${{ secrets.NOTE_SESSION }}
+          NOTE_VID: ${{ secrets.NOTE_VID }}
