@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meerkat Bug Squish</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Arial', sans-serif;
+    background: #8B6914;
+    min-height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+  #app {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+  }
+  .screen {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+  .screen.active { display: flex; }
+
+  /* Backgrounds */
+  #game-screen {
+    background: radial-gradient(ellipse at center, #c8a84b 0%, #8B6914 60%, #5a4010 100%);
+  }
+  .menu-bg {
+    background: radial-gradient(ellipse at center, #d4a843 0%, #8B6914 50%, #4a3008 100%);
+  }
+
+  /* Cards */
+  .card {
+    background: rgba(255,235,180,0.92);
+    border-radius: 20px;
+    padding: 40px 50px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    max-width: 480px;
+    width: 90%;
+  }
+  .card h1 {
+    font-size: 2.4em;
+    color: #5a3a00;
+    margin-bottom: 8px;
+  }
+  .card h2 {
+    font-size: 1.7em;
+    color: #5a3a00;
+    margin-bottom: 20px;
+  }
+  .card p {
+    color: #7a5a20;
+    margin-bottom: 24px;
+    font-size: 1.05em;
+  }
+  .meerkat-emoji {
+    font-size: 4em;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  /* Buttons */
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px 20px;
+    margin: 10px 0;
+    font-size: 1.15em;
+    font-weight: bold;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+  }
+  .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.2); }
+  .btn-green  { background: #4caf50; color: white; }
+  .btn-green:hover  { background: #43a047; }
+  .btn-blue   { background: #2196f3; color: white; }
+  .btn-blue:hover   { background: #1e88e5; }
+  .btn-orange { background: #ff9800; color: white; }
+  .btn-orange:hover { background: #fb8c00; }
+  .btn-red    { background: #f44336; color: white; }
+  .btn-red:hover    { background: #e53935; }
+  .btn-gray   { background: #9e9e9e; color: white; }
+  .btn-gray:hover   { background: #757575; }
+  .btn-purple { background: #9c27b0; color: white; }
+  .btn-purple:hover { background: #8e24aa; }
+  .btn-back   { background: transparent; color: #7a5a20; border: 2px solid #7a5a20; margin-top: 16px; }
+  .btn-back:hover { background: rgba(122,90,32,0.1); }
+
+  /* Difficulty grid */
+  .diff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .diff-btn {
+    padding: 14px 10px;
+    font-size: 1em;
+    font-weight: bold;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+    color: white;
+  }
+  .diff-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.2); }
+  .diff-easy    { background: #4caf50; }
+  .diff-easy:hover    { background: #43a047; }
+  .diff-normal  { background: #2196f3; }
+  .diff-normal:hover  { background: #1e88e5; }
+  .diff-hard    { background: #ff9800; }
+  .diff-hard:hover    { background: #fb8c00; }
+  .diff-extreme { background: #f44336; }
+  .diff-extreme:hover { background: #e53935; }
+  .diff-label { font-size: 1.1em; display: block; }
+  .diff-sub   { font-size: 0.75em; font-weight: normal; opacity: 0.9; display: block; margin-top: 4px; }
+
+  /* HUD */
+  #hud {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: rgba(0,0,0,0.45);
+    color: white;
+    font-size: 1em;
+    font-weight: bold;
+    z-index: 10;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .hud-item { display: flex; flex-direction: column; align-items: center; min-width: 60px; }
+  .hud-label { font-size: 0.65em; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hud-val   { font-size: 1.3em; }
+  #timer-val.warn { color: #ff6b6b; animation: pulse 0.5s infinite alternate; }
+  @keyframes pulse { from { opacity:1 } to { opacity:0.5 } }
+
+  /* Bugs */
+  .bug {
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2em;
+    border-radius: 50%;
+    transition: transform 0.1s;
+    animation: bugWiggle 0.4s infinite alternate;
+    z-index: 5;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bug:hover { transform: scale(1.15); }
+  @keyframes bugWiggle {
+    from { transform: rotate(-8deg); }
+    to   { transform: rotate(8deg); }
+  }
+  .bug.attacking {
+    animation: bugAttack 0.3s infinite alternate;
+    filter: drop-shadow(0 0 8px red);
+  }
+  @keyframes bugAttack {
+    from { transform: scale(1); }
+    to   { transform: scale(1.3); }
+  }
+  .bug.squished {
+    animation: squish 0.3s forwards;
+    pointer-events: none;
+  }
+  @keyframes squish {
+    0%   { transform: scale(1); opacity: 1; }
+    40%  { transform: scale(1.6, 0.4); opacity: 0.8; }
+    100% { transform: scale(0); opacity: 0; }
+  }
+
+  /* Splat text */
+  .splat {
+    position: absolute;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #2d8a00;
+    pointer-events: none;
+    animation: splatFly 0.7s forwards;
+    z-index: 20;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+  }
+  @keyframes splatFly {
+    0%   { transform: translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateY(-50px) scale(0.5); opacity: 0; }
+  }
+
+  /* Life lost flash */
+  #flash {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,0,0,0.35);
+    pointer-events: none;
+    opacity: 0;
+    z-index: 30;
+    transition: opacity 0.2s;
+  }
+  #flash.show { opacity: 1; }
+
+  /* Result screen */
+  #result-screen .card h1 { font-size: 3em; }
+  .result-stats { margin: 16px 0; text-align: left; }
+  .result-stats div { padding: 6px 0; color: #5a3a00; font-size: 1.05em; border-bottom: 1px solid rgba(122,90,32,0.2); }
+  .result-stats span { float: right; font-weight: bold; }
+
+  /* Pause button */
+  #pause-btn {
+    position: absolute;
+    top: 60px;
+    right: 12px;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 0.9em;
+    z-index: 15;
+  }
+
+  /* Pause overlay */
+  #pause-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+  }
+  #pause-overlay.active { display: flex; }
+  #pause-overlay .card { max-width: 320px; }
+
+  /* Stars for clear */
+  .stars { font-size: 2.5em; margin: 8px 0; }
+
+  /* Ground decoration */
+  #ground {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 80px;
+    background: linear-gradient(to bottom, #a07830 0%, #7a5a20 100%);
+    z-index: 1;
+  }
+  .burrow {
+    position: absolute;
+    bottom: 10px;
+    width: 50px;
+    height: 28px;
+    background: #3a2a08;
+    border-radius: 50% 50% 0 0;
+    opacity: 0.7;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Mode Select -->
+  <div id="mode-screen" class="screen menu-bg active">
+    <div class="card">
+      <span class="meerkat-emoji">🦦</span>
+      <h1>Meerkat Bug Squish!</h1>
+      <p>Help the meerkats keep their burrow bug-free!</p>
+      <button class="btn btn-green" onclick="selectMode('free')">🌿 Free Play</button>
+      <button class="btn btn-orange" onclick="selectMode('challenge')">⚡ Challenge Mode</button>
+    </div>
+  </div>
+
+  <!-- Difficulty Select -->
+  <div id="diff-screen" class="screen menu-bg">
+    <div class="card">
+      <span class="meerkat-emoji">🦦</span>
+      <h2>Choose Difficulty</h2>
+      <p>Squish bugs before time runs out!<br>60 seconds · 3 lives</p>
+      <div class="diff-grid">
+        <button class="diff-btn diff-easy"    onclick="startChallenge('easy')">
+          <span class="diff-label">😊 Easy</span>
+          <span class="diff-sub">300 bugs · slow</span>
+        </button>
+        <button class="diff-btn diff-normal"  onclick="startChallenge('normal')">
+          <span class="diff-label">😐 Normal</span>
+          <span class="diff-sub">300 bugs · medium</span>
+        </button>
+        <button class="diff-btn diff-hard"    onclick="startChallenge('hard')">
+          <span class="diff-label">😤 Hard</span>
+          <span class="diff-sub">300 bugs · fast</span>
+        </button>
+        <button class="diff-btn diff-extreme" onclick="startChallenge('extreme')">
+          <span class="diff-label">💀 Extreme</span>
+          <span class="diff-sub">400 bugs · extreme</span>
+        </button>
+      </div>
+      <button class="btn btn-back" onclick="showScreen('mode-screen')">← Back</button>
+    </div>
+  </div>
+
+  <!-- Game Screen -->
+  <div id="game-screen" class="screen">
+    <div id="ground">
+      <div class="burrow" style="left:8%"></div>
+      <div class="burrow" style="left:25%"></div>
+      <div class="burrow" style="left:45%"></div>
+      <div class="burrow" style="left:65%"></div>
+      <div class="burrow" style="left:82%"></div>
+    </div>
+    <div id="hud">
+      <div class="hud-item">
+        <span class="hud-label">Score</span>
+        <span class="hud-val" id="score-val">0</span>
+      </div>
+      <div class="hud-item" id="lives-box">
+        <span class="hud-label">Lives</span>
+        <span class="hud-val" id="lives-val">❤️❤️❤️</span>
+      </div>
+      <div class="hud-item" id="timer-box">
+        <span class="hud-label">Time</span>
+        <span class="hud-val" id="timer-val">60</span>
+      </div>
+      <div class="hud-item" id="target-box">
+        <span class="hud-label">Target</span>
+        <span class="hud-val" id="target-val">–</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Mode</span>
+        <span class="hud-val" id="mode-val">Free</span>
+      </div>
+    </div>
+    <button id="pause-btn" onclick="togglePause()">⏸ Pause</button>
+    <div id="flash"></div>
+
+    <!-- Pause Overlay -->
+    <div id="pause-overlay">
+      <div class="card">
+        <h2>⏸ Paused</h2>
+        <button class="btn btn-green" onclick="togglePause()">▶ Resume</button>
+        <button class="btn btn-gray"  onclick="quitGame()">🏠 Quit to Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Result Screen -->
+  <div id="result-screen" class="screen menu-bg">
+    <div class="card">
+      <div id="result-emoji" style="font-size:3.5em; margin-bottom:8px"></div>
+      <h1 id="result-title"></h1>
+      <div class="stars" id="result-stars"></div>
+      <div class="result-stats" id="result-stats"></div>
+      <button class="btn btn-green"  id="play-again-btn" onclick="playAgain()">🔄 Play Again</button>
+      <button class="btn btn-blue"   onclick="showScreen('mode-screen')">🏠 Main Menu</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── Config ───────────────────────────────────────────────────────────────────
+const DIFF = {
+  easy:    { spawnMs: 2000, attackMs: 5000, target: 300, lives: 3 },
+  normal:  { spawnMs: 1500, attackMs: 4000, target: 300, lives: 3 },
+  hard:    { spawnMs: 1200, attackMs: 3000, target: 300, lives: 3 },
+  extreme: { spawnMs: 1000, attackMs: 2000, target: 400, lives: 3 },
+};
+const FREE_SPAWN_MS = 1500;
+const TIME_LIMIT    = 60;
+const BUG_EMOJIS    = ['🐛','🪲','🐞','🦗','🪳','🕷️','🦟','🪰'];
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let mode, difficulty, cfg;
+let score, lives, timeLeft, squishCount, paused;
+let bugs = {};   // id → { el, attackTimer }
+let bugIdCounter = 0;
+let spawnTimer, countdownTimer;
+let gameActive = false;
+let startTime, pauseStart, totalPausedMs;
+let lastDifficulty;
+
+// ─── Screens ──────────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function selectMode(m) {
+  if (m === 'free') startFreePlay();
+  else showScreen('diff-screen');
+}
+
+function startFreePlay() {
+  mode = 'free';
+  difficulty = null;
+  cfg = null;
+  initGame();
+}
+
+function startChallenge(diff) {
+  mode = 'challenge';
+  difficulty = diff;
+  lastDifficulty = diff;
+  cfg = DIFF[diff];
+  initGame();
+}
+
+// ─── Game init ────────────────────────────────────────────────────────────────
+function initGame() {
+  score = 0;
+  squishCount = 0;
+  lives = cfg ? cfg.lives : Infinity;
+  timeLeft = TIME_LIMIT;
+  paused = false;
+  gameActive = true;
+  totalPausedMs = 0;
+  bugs = {};
+  bugIdCounter = 0;
+
+  clearAllBugs();
+  updateHUD();
+
+  document.getElementById('lives-box').style.display  = (mode === 'free') ? 'none' : '';
+  document.getElementById('timer-box').style.display  = (mode === 'free') ? 'none' : '';
+  document.getElementById('target-box').style.display = (mode === 'free') ? 'none' : '';
+  document.getElementById('mode-val').textContent = mode === 'free' ? 'Free' : difficulty.charAt(0).toUpperCase()+difficulty.slice(1);
+
+  document.getElementById('pause-overlay').classList.remove('active');
+  document.getElementById('flash').classList.remove('show');
+  document.getElementById('timer-val').classList.remove('warn');
+
+  showScreen('game-screen');
+  startTime = Date.now();
+
+  const spawnMs = cfg ? cfg.spawnMs : FREE_SPAWN_MS;
+  spawnBug();
+  spawnTimer = setInterval(spawnBug, spawnMs);
+
+  if (mode === 'challenge') {
+    countdownTimer = setInterval(tick, 1000);
+  }
+}
+
+function tick() {
+  if (paused) return;
+  timeLeft--;
+  if (timeLeft <= 10) document.getElementById('timer-val').classList.add('warn');
+  updateHUD();
+  if (timeLeft <= 0) endGame('timeout');
+}
+
+// ─── HUD ──────────────────────────────────────────────────────────────────────
+function updateHUD() {
+  document.getElementById('score-val').textContent  = score;
+  document.getElementById('timer-val').textContent  = timeLeft;
+  document.getElementById('lives-val').textContent  = '❤️'.repeat(Math.max(0,lives));
+  document.getElementById('target-val').textContent = cfg ? Math.max(0, cfg.target - squishCount) + '/' + cfg.target : '–';
+}
+
+// ─── Bug spawning ─────────────────────────────────────────────────────────────
+function getGameBounds() {
+  const hud = document.getElementById('hud');
+  const hudH = hud.offsetHeight + 70; // below hud + pause btn
+  const groundH = 80;
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  return { minX: 10, maxX: W - 62, minY: hudH, maxY: H - groundH - 62 };
+}
+
+function spawnBug() {
+  if (!gameActive || paused) return;
+  const b = getGameBounds();
+  const x = b.minX + Math.random() * (b.maxX - b.minX);
+  const y = b.minY + Math.random() * (b.maxY - b.minY);
+
+  const id = ++bugIdCounter;
+  const el = document.createElement('div');
+  el.className = 'bug';
+  el.dataset.id = id;
+  el.style.left = x + 'px';
+  el.style.top  = y + 'px';
+  el.textContent = BUG_EMOJIS[Math.floor(Math.random() * BUG_EMOJIS.length)];
+  el.addEventListener('click',  () => squishBug(id));
+  el.addEventListener('touchstart', e => { e.preventDefault(); squishBug(id); }, { passive: false });
+
+  document.getElementById('game-screen').appendChild(el);
+
+  let attackTimer = null;
+  if (mode === 'challenge' && cfg.attackMs) {
+    attackTimer = setTimeout(() => bugAttacks(id), cfg.attackMs);
+  }
+
+  bugs[id] = { el, attackTimer };
+}
+
+function squishBug(id) {
+  if (!gameActive || paused || !bugs[id]) return;
+  const { el, attackTimer } = bugs[id];
+  if (el.classList.contains('squished')) return;
+
+  if (attackTimer) clearTimeout(attackTimer);
+  delete bugs[id];
+
+  el.classList.add('squished');
+  showSplat(el);
+
+  score++;
+  squishCount++;
+  updateHUD();
+
+  setTimeout(() => el.remove(), 350);
+
+  if (mode === 'challenge' && squishCount >= cfg.target) {
+    endGame('clear');
+  }
+}
+
+function bugAttacks(id) {
+  if (!gameActive || paused || !bugs[id]) return;
+  const { el } = bugs[id];
+  el.classList.add('attacking');
+
+  // Give player a brief window (0.8s) to still squish it
+  setTimeout(() => {
+    if (!gameActive || !bugs[id]) return;
+    // Bug escaped — deal damage
+    const { el: bugEl, attackTimer } = bugs[id];
+    if (attackTimer) clearTimeout(attackTimer);
+    delete bugs[id];
+    bugEl.remove();
+
+    lives = Math.max(0, lives - 1);
+    updateHUD();
+    flashRed();
+
+    if (lives <= 0) endGame('gameover');
+  }, 800);
+}
+
+function clearAllBugs() {
+  document.querySelectorAll('.bug').forEach(b => b.remove());
+  Object.values(bugs).forEach(({ attackTimer }) => { if (attackTimer) clearTimeout(attackTimer); });
+  bugs = {};
+}
+
+// ─── Effects ──────────────────────────────────────────────────────────────────
+function showSplat(bugEl) {
+  const splat = document.createElement('div');
+  splat.className = 'splat';
+  splat.textContent = '+1 💥';
+  splat.style.left = bugEl.style.left;
+  splat.style.top  = (parseInt(bugEl.style.top) - 10) + 'px';
+  splat.style.zIndex = 25;
+  document.getElementById('game-screen').appendChild(splat);
+  setTimeout(() => splat.remove(), 700);
+}
+
+function flashRed() {
+  const f = document.getElementById('flash');
+  f.classList.add('show');
+  setTimeout(() => f.classList.remove('show'), 300);
+}
+
+// ─── Pause ────────────────────────────────────────────────────────────────────
+function togglePause() {
+  if (!gameActive) return;
+  paused = !paused;
+  document.getElementById('pause-overlay').classList.toggle('active', paused);
+  document.getElementById('pause-btn').textContent = paused ? '▶ Resume' : '⏸ Pause';
+}
+
+function quitGame() {
+  stopGame();
+  showScreen('mode-screen');
+}
+
+// ─── End Game ─────────────────────────────────────────────────────────────────
+function stopGame() {
+  gameActive = false;
+  clearInterval(spawnTimer);
+  clearInterval(countdownTimer);
+  clearAllBugs();
+}
+
+function endGame(reason) {
+  stopGame();
+
+  let title, emoji, stars = '';
+  if (mode === 'free') {
+    title = 'Game Over!';
+    emoji = '🦦';
+    stars = '⭐'.repeat(Math.min(5, Math.floor(score / 10)));
+  } else if (reason === 'clear') {
+    title = 'You Win!';
+    emoji = '🎉';
+    const pct = squishCount / cfg.target;
+    stars = pct >= 1 ? '⭐⭐⭐' : pct >= 0.8 ? '⭐⭐' : '⭐';
+  } else if (reason === 'gameover') {
+    title = 'Game Over!';
+    emoji = '💀';
+    stars = '';
+  } else {
+    // timeout
+    if (squishCount >= cfg.target) {
+      title = 'You Win!';
+      emoji = '🎉';
+      stars = '⭐⭐⭐';
+    } else {
+      title = 'Time\'s Up!';
+      emoji = '⏰';
+      stars = '';
+    }
+  }
+
+  document.getElementById('result-emoji').textContent = emoji;
+  document.getElementById('result-title').textContent = title;
+  document.getElementById('result-stars').textContent = stars;
+
+  let statsHTML = `<div>Score <span>${score}</span></div>`;
+  if (mode === 'challenge') {
+    statsHTML += `<div>Bugs Squished <span>${squishCount} / ${cfg.target}</span></div>`;
+    statsHTML += `<div>Lives Remaining <span>${lives}</span></div>`;
+    statsHTML += `<div>Time Left <span>${timeLeft}s</span></div>`;
+    statsHTML += `<div>Difficulty <span>${difficulty.charAt(0).toUpperCase()+difficulty.slice(1)}</span></div>`;
+  } else {
+    statsHTML += `<div>Bugs Squished <span>${squishCount}</span></div>`;
+  }
+  document.getElementById('result-stats').innerHTML = statsHTML;
+
+  // Update Play Again button label
+  document.getElementById('play-again-btn').textContent = mode === 'free' ? '🔄 Play Again' : `🔄 Try Again (${difficulty})`;
+
+  showScreen('result-screen');
+}
+
+function playAgain() {
+  if (mode === 'free') startFreePlay();
+  else startChallenge(lastDifficulty || difficulty);
+}
+
+// ─── Keyboard ─────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') togglePause();
+});
+</script>
+</body>
+</html>
