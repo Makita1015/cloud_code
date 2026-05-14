@@ -147,21 +147,19 @@
   /* Bugs */
   .bug {
     position: absolute;
-    width: 104px;
-    height: 104px;
+    width: 156px;
+    height: 156px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 4em;
+    font-size: 6em;
     border-radius: 50%;
-    transition: transform 0.1s;
     animation: bugWiggle 0.4s infinite alternate;
     z-index: 5;
     -webkit-tap-highlight-color: transparent;
     touch-action: none;
   }
-  .bug:hover { transform: scale(1.15); }
   @keyframes bugWiggle {
     from { transform: rotate(-8deg); }
     to   { transform: rotate(8deg); }
@@ -383,12 +381,13 @@ const BUG_EMOJIS    = ['🐛','🪲','🐞','🦗','🪳','🕷️','🦟','🪰
 // ─── State ────────────────────────────────────────────────────────────────────
 let mode, difficulty, cfg;
 let score, lives, timeLeft, squishCount, paused;
-let bugs = {};   // id → { el, attackTimer }
+let bugs = {};   // id → { el, attackTimer, x, y, vx, vy }
 let bugIdCounter = 0;
-let spawnTimer, countdownTimer;
+let spawnTimer, countdownTimer, animFrame;
 let gameActive = false;
 let startTime, pauseStart, totalPausedMs;
 let lastDifficulty;
+let gameBounds = null;
 
 // ─── Screens ──────────────────────────────────────────────────────────────────
 function showScreen(id) {
@@ -441,7 +440,11 @@ function initGame() {
   document.getElementById('timer-val').classList.remove('warn');
 
   showScreen('game-screen');
+  computeBounds();
   startTime = Date.now();
+
+  if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+  movementLoop();
 
   const spawnMs = cfg ? cfg.spawnMs : FREE_SPAWN_MS;
   spawnBug();
@@ -468,21 +471,42 @@ function updateHUD() {
   document.getElementById('target-val').textContent = cfg ? Math.max(0, cfg.target - squishCount) + '/' + cfg.target : '–';
 }
 
-// ─── Bug spawning ─────────────────────────────────────────────────────────────
-function getGameBounds() {
+// ─── Bug spawning & movement ──────────────────────────────────────────────────
+function computeBounds() {
   const hud = document.getElementById('hud');
-  const hudH = hud.offsetHeight + 70; // below hud + pause btn
+  const hudH = hud.offsetHeight + 70;
   const groundH = 80;
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-  return { minX: 10, maxX: W - 114, minY: hudH, maxY: H - groundH - 114 };
+  gameBounds = { minX: 10, maxX: window.innerWidth - 166, minY: hudH, maxY: window.innerHeight - groundH - 166 };
+}
+window.addEventListener('resize', computeBounds);
+
+function movementLoop() {
+  if (!gameActive) return;
+  if (!paused && gameBounds) {
+    const b = gameBounds;
+    for (const id in bugs) {
+      const bug = bugs[id];
+      bug.x += bug.vx;
+      bug.y += bug.vy;
+      if (bug.x <= b.minX) { bug.x = b.minX; bug.vx =  Math.abs(bug.vx); }
+      if (bug.x >= b.maxX) { bug.x = b.maxX; bug.vx = -Math.abs(bug.vx); }
+      if (bug.y <= b.minY) { bug.y = b.minY; bug.vy =  Math.abs(bug.vy); }
+      if (bug.y >= b.maxY) { bug.y = b.maxY; bug.vy = -Math.abs(bug.vy); }
+      bug.el.style.left = bug.x + 'px';
+      bug.el.style.top  = bug.y + 'px';
+    }
+  }
+  animFrame = requestAnimationFrame(movementLoop);
 }
 
 function spawnBug() {
   if (!gameActive || paused) return;
-  const b = getGameBounds();
+  const b = gameBounds || { minX: 10, maxX: window.innerWidth - 166, minY: 120, maxY: window.innerHeight - 246 };
   const x = b.minX + Math.random() * (b.maxX - b.minX);
   const y = b.minY + Math.random() * (b.maxY - b.minY);
+
+  const speed = 0.8 + Math.random() * 1.9;
+  const angle = Math.random() * Math.PI * 2;
 
   const id = ++bugIdCounter;
   const el = document.createElement('div');
@@ -501,7 +525,7 @@ function spawnBug() {
     attackTimer = setTimeout(() => bugAttacks(id), cfg.attackMs);
   }
 
-  bugs[id] = { el, attackTimer };
+  bugs[id] = { el, attackTimer, x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed };
 }
 
 function squishBug(id) {
@@ -591,6 +615,7 @@ function stopGame() {
   gameActive = false;
   clearInterval(spawnTimer);
   clearInterval(countdownTimer);
+  if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
   clearAllBugs();
 }
 
@@ -659,37 +684,48 @@ function getAudioCtx() {
 }
 
 function playSquishSound() {
+  // Meerkat excited chirp — two quick FM-modulated pulses sweeping upward
   try {
     const ctx = getAudioCtx();
+
+    function chirp(when, baseFreq, dur) {
+      const carrier  = ctx.createOscillator();
+      const mod      = ctx.createOscillator();
+      const modGain  = ctx.createGain();
+      const env      = ctx.createGain();
+
+      mod.connect(modGain);
+      modGain.connect(carrier.frequency);
+      carrier.connect(env);
+      env.connect(ctx.destination);
+
+      carrier.type = 'sine';
+      mod.type     = 'sine';
+
+      // Carrier sweeps upward — characteristic excited meerkat chirp shape
+      carrier.frequency.setValueAtTime(baseFreq * 0.65, when);
+      carrier.frequency.exponentialRampToValueAtTime(baseFreq, when + dur * 0.45);
+      carrier.frequency.exponentialRampToValueAtTime(baseFreq * 0.85, when + dur);
+
+      // FM modulator adds harmonic wobble (animal vocal tract effect)
+      mod.frequency.setValueAtTime(280, when);
+      mod.frequency.exponentialRampToValueAtTime(140, when + dur);
+      modGain.gain.setValueAtTime(baseFreq * 0.35, when);
+      modGain.gain.exponentialRampToValueAtTime(baseFreq * 0.04, when + dur);
+
+      // Sharp attack, natural decay
+      env.gain.setValueAtTime(0, when);
+      env.gain.linearRampToValueAtTime(0.42, when + 0.009);
+      env.gain.setValueAtTime(0.42, when + dur * 0.25);
+      env.gain.exponentialRampToValueAtTime(0.001, when + dur);
+
+      carrier.start(when);  carrier.stop(when + dur);
+      mod.start(when);      mod.stop(when + dur);
+    }
+
     const t = ctx.currentTime;
-
-    // Descending sawtooth squelch
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(380, t);
-    osc.frequency.exponentialRampToValueAtTime(60, t + 0.18);
-    gain.gain.setValueAtTime(0.35, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-    osc.start(t);
-    osc.stop(t + 0.18);
-
-    // Short noise burst for extra splat texture
-    const bufSize = ctx.sampleRate * 0.06;
-    const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
-    const noise = ctx.createBufferSource();
-    const noiseGain = ctx.createGain();
-    noise.buffer = buf;
-    noise.connect(noiseGain);
-    noiseGain.connect(ctx.destination);
-    noiseGain.gain.setValueAtTime(0.2, t);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-    noise.start(t);
-    noise.stop(t + 0.06);
+    chirp(t,        1150, 0.09);   // first chirp
+    chirp(t + 0.11, 1450, 0.08);   // second chirp, slightly higher — excited follow-up
   } catch (_) {}
 }
 
