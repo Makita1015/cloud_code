@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ミーアキャット虫潰しゲーム</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(180deg, #87ceeb 0%, #87ceeb 60%, #c2a96a 60%, #c2a96a 80%, #a07850 80%);
+      min-height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* ===== HUD ===== */
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 0; right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .hud-box {
+      background: rgba(0,0,0,0.55);
+      color: #fff;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    #timer-box { color: #ffd700; }
+    #score-box { color: #90ee90; }
+    #miss-box  { color: #ff8080; }
+
+    /* ===== SCREENS ===== */
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      background: rgba(0,0,0,0.6);
+    }
+
+    .screen h1 {
+      font-size: 2.8rem;
+      color: #fff;
+      text-shadow: 2px 2px 6px #000;
+      margin-bottom: 10px;
+    }
+
+    .screen p {
+      color: #ddd;
+      font-size: 1rem;
+      margin-bottom: 30px;
+    }
+
+    .difficulty-buttons {
+      display: flex;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    .diff-btn {
+      padding: 14px 32px;
+      border: none;
+      border-radius: 30px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    .diff-btn:hover { transform: translateY(-3px); box-shadow: 0 7px 18px rgba(0,0,0,0.5); }
+    .diff-btn.easy   { background: #4caf50; color: #fff; }
+    .diff-btn.normal { background: #ff9800; color: #fff; }
+    .diff-btn.hard   { background: #f44336; color: #fff; }
+
+    .diff-btn.selected {
+      outline: 4px solid #fff;
+      outline-offset: 2px;
+    }
+
+    .start-btn {
+      padding: 16px 60px;
+      border: none;
+      border-radius: 40px;
+      font-size: 1.4rem;
+      font-weight: bold;
+      cursor: pointer;
+      background: linear-gradient(135deg, #ffd700, #ffa000);
+      color: #333;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      transition: transform 0.15s;
+    }
+
+    .start-btn:hover { transform: scale(1.05); }
+
+    #result-screen h1 { font-size: 3rem; }
+    #result-score {
+      font-size: 2rem;
+      color: #ffd700;
+      margin: 10px 0 30px;
+    }
+
+    /* ===== FIELD ===== */
+    #field {
+      position: absolute;
+      inset: 0;
+    }
+
+    /* ===== BUGS ===== */
+    .bug {
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      cursor: pointer;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      transition: transform 0.05s;
+      animation: bugWiggle 0.3s infinite alternate;
+    }
+
+    .bug:hover { transform: scale(1.2); }
+
+    @keyframes bugWiggle {
+      from { transform: rotate(-8deg); }
+      to   { transform: rotate(8deg); }
+    }
+
+    .bug.squished {
+      animation: squish 0.35s forwards;
+      pointer-events: none;
+    }
+
+    @keyframes squish {
+      0%   { transform: scale(1); opacity: 1; }
+      30%  { transform: scale(2.2, 0.3); opacity: 1; }
+      60%  { transform: scale(1.5, 0.2); opacity: 0.7; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+
+    /* ===== MEERKATS ===== */
+    .meerkat-hole {
+      position: absolute;
+      bottom: 18%;
+      width: 70px;
+      text-align: center;
+    }
+
+    .meerkat-body {
+      position: relative;
+      height: 80px;
+      overflow: hidden;
+    }
+
+    .meerkat-svg {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%) translateY(100%);
+      width: 60px;
+      transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    .meerkat-svg.visible {
+      transform: translateX(-50%) translateY(0%);
+    }
+
+    .meerkat-svg.react {
+      transform: translateX(-50%) translateY(-10px);
+    }
+
+    .hole-oval {
+      width: 60px;
+      height: 20px;
+      background: #5a3e1b;
+      border-radius: 50%;
+      margin: 0 auto;
+      box-shadow: inset 0 3px 8px rgba(0,0,0,0.6);
+    }
+
+    /* ===== SCORE POP ===== */
+    .score-pop {
+      position: absolute;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #ffd700;
+      text-shadow: 1px 1px 3px #000;
+      pointer-events: none;
+      z-index: 90;
+      animation: popUp 0.7s forwards;
+    }
+
+    @keyframes popUp {
+      0%   { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-60px) scale(1.4); }
+    }
+
+    /* ===== SPEECH BUBBLE ===== */
+    .speech {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #fff;
+      border-radius: 12px;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+    }
+
+    .speech::after {
+      content: '';
+      position: absolute;
+      top: 100%; left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #fff;
+    }
+
+    .speech.show { opacity: 1; }
+
+    /* ===== CLOUDS ===== */
+    .cloud {
+      position: absolute;
+      top: 5%;
+      background: rgba(255,255,255,0.85);
+      border-radius: 50px;
+      animation: driftCloud linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes driftCloud {
+      from { transform: translateX(-200px); }
+      to   { transform: translateX(110vw); }
+    }
+  </style>
+</head>
+<body>
+<div id="game-container">
+
+  <!-- field where bugs & meerkats live -->
+  <div id="field"></div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-box" id="timer-box">⏱ <span id="timer">30</span>s</div>
+    <div class="hud-box" id="score-box">⭐ <span id="score">0</span></div>
+    <div class="hud-box" id="miss-box">💔 <span id="miss">0</span> / <span id="max-miss">5</span></div>
+  </div>
+
+  <!-- START SCREEN -->
+  <div class="screen" id="start-screen">
+    <h1>🐾 虫潰しゲーム</h1>
+    <p>ミーアキャットたちが見守る中、虫を全力で潰そう！</p>
+    <div class="difficulty-buttons">
+      <button class="diff-btn easy selected"   data-diff="easy">🟢 易しい</button>
+      <button class="diff-btn normal"           data-diff="normal">🟡 普通</button>
+      <button class="diff-btn hard"             data-diff="hard">🔴 難しい</button>
+    </div>
+    <button class="start-btn" id="start-btn">ゲームスタート！</button>
+  </div>
+
+  <!-- RESULT SCREEN -->
+  <div class="screen" id="result-screen" style="display:none">
+    <h1 id="result-title">ゲーム終了！</h1>
+    <div id="result-score"></div>
+    <button class="start-btn" id="retry-btn">もう一度遊ぶ</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  CONFIG
+// ─────────────────────────────────────────────
+const DIFF = {
+  easy:   { spawnMs: 1800, speed: 1.2, timeLimit: 40, maxMiss: 8,  bugTypes: ['🐛','🐌'], pointPer: 10 },
+  normal: { spawnMs: 1100, speed: 2.0, timeLimit: 30, maxMiss: 5,  bugTypes: ['🐛','🐜','🦗'], pointPer: 15 },
+  hard:   { spawnMs:  650, speed: 3.2, timeLimit: 25, maxMiss: 3,  bugTypes: ['🐛','🐜','🦗','🦟','🪲'], pointPer: 20 },
+};
+
+const MEERKAT_PHRASES = {
+  idle:   ['…','zzz','👀','ん？'],
+  react:  ['やった！','いいね！','すごい！','ナイス！','ぺちゃ！'],
+  alert:  ['あ！','逃げた！','うわ！','こっち！'],
+};
+
+// ─────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────
+let state = {
+  running: false,
+  score: 0,
+  miss: 0,
+  timeLeft: 30,
+  difficulty: 'easy',
+  spawnTimer: null,
+  countdownTimer: null,
+  bugs: [],          // { el, x, y, vx, vy, id }
+  meerkats: [],      // { hole, svg, speech }
+  animFrame: null,
+};
+
+// ─────────────────────────────────────────────
+//  DIFFICULTY SELECT
+// ─────────────────────────────────────────────
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    state.difficulty = btn.dataset.diff;
+  });
+});
+
+// ─────────────────────────────────────────────
+//  START / RETRY
+// ─────────────────────────────────────────────
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('retry-btn').addEventListener('click', () => {
+  document.getElementById('result-screen').style.display = 'none';
+  document.getElementById('start-screen').style.display = 'flex';
+});
+
+function startGame() {
+  document.getElementById('start-screen').style.display = 'none';
+  const cfg = DIFF[state.difficulty];
+
+  state.running = true;
+  state.score = 0;
+  state.miss = 0;
+  state.timeLeft = cfg.timeLimit;
+  state.bugs = [];
+
+  updateHUD();
+  document.getElementById('max-miss').textContent = cfg.maxMiss;
+
+  setupMeerkats();
+  spawnClouds();
+  scheduleSpawn();
+  startCountdown();
+  requestAnimationFrame(gameLoop);
+}
+
+// ─────────────────────────────────────────────
+//  MEERKATS
+// ─────────────────────────────────────────────
+function setupMeerkats() {
+  const field = document.getElementById('field');
+  // clear old
+  document.querySelectorAll('.meerkat-hole').forEach(h => h.remove());
+  state.meerkats = [];
+
+  const count = 4;
+  for (let i = 0; i < count; i++) {
+    const hole = document.createElement('div');
+    hole.className = 'meerkat-hole';
+    const xPct = 10 + (i / (count - 1)) * 80;
+    hole.style.left = xPct + '%';
+
+    // body container
+    const body = document.createElement('div');
+    body.className = 'meerkat-body';
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 60 80');
+    svg.classList.add('meerkat-svg', 'visible');
+    svg.innerHTML = buildMeerkatSVG();
+
+    const speech = document.createElement('div');
+    speech.className = 'speech';
+    speech.textContent = '…';
+
+    body.appendChild(speech);
+    body.appendChild(svg);
+    hole.appendChild(body);
+
+    const oval = document.createElement('div');
+    oval.className = 'hole-oval';
+    hole.appendChild(oval);
+
+    field.appendChild(hole);
+    state.meerkats.push({ hole, svg, speech });
+
+    // random idle peek
+    idlePeek(state.meerkats[i], i);
+  }
+}
+
+function buildMeerkatSVG() {
+  return `
+    <!-- body -->
+    <ellipse cx="30" cy="62" rx="16" ry="18" fill="#c8a06e"/>
+    <!-- belly -->
+    <ellipse cx="30" cy="65" rx="10" ry="12" fill="#e8d0a0"/>
+    <!-- head -->
+    <ellipse cx="30" cy="32" rx="18" ry="20" fill="#c8a06e"/>
+    <!-- face dark patch -->
+    <ellipse cx="30" cy="36" rx="13" ry="14" fill="#a07848"/>
+    <!-- eyes -->
+    <circle cx="23" cy="30" r="5" fill="#fff"/>
+    <circle cx="37" cy="30" r="5" fill="#fff"/>
+    <circle cx="24" cy="31" r="3" fill="#2b1a0a"/>
+    <circle cx="38" cy="31" r="3" fill="#2b1a0a"/>
+    <circle cx="24.8" cy="30.2" r="1" fill="#fff"/>
+    <circle cx="38.8" cy="30.2" r="1" fill="#fff"/>
+    <!-- nose -->
+    <ellipse cx="30" cy="38" rx="3.5" ry="2.5" fill="#6b3a1f"/>
+    <!-- mouth -->
+    <path d="M26 41 Q30 45 34 41" stroke="#6b3a1f" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <!-- ears -->
+    <ellipse cx="14" cy="18" rx="6" ry="8" fill="#c8a06e" transform="rotate(-20 14 18)"/>
+    <ellipse cx="46" cy="18" rx="6" ry="8" fill="#c8a06e" transform="rotate(20 46 18)"/>
+    <ellipse cx="14" cy="18" rx="3" ry="5" fill="#e8b080" transform="rotate(-20 14 18)"/>
+    <ellipse cx="46" cy="18" rx="3" ry="5" fill="#e8b080" transform="rotate(20 46 18)"/>
+    <!-- arms -->
+    <ellipse cx="13" cy="55" rx="6" ry="10" fill="#c8a06e" transform="rotate(-15 13 55)"/>
+    <ellipse cx="47" cy="55" rx="6" ry="10" fill="#c8a06e" transform="rotate(15 47 55)"/>
+  `;
+}
+
+function idlePeek(mk, index) {
+  if (!state.running) return;
+  const delay = 3000 + index * 800 + Math.random() * 4000;
+  setTimeout(() => {
+    if (!state.running) return;
+    showSpeech(mk, pick(MEERKAT_PHRASES.idle), 1200);
+    idlePeek(mk, index);
+  }, delay);
+}
+
+function reactMeerkat(nearestMk) {
+  const mk = nearestMk || pick(state.meerkats);
+  mk.svg.classList.add('react');
+  showSpeech(mk, pick(MEERKAT_PHRASES.react), 900);
+  setTimeout(() => mk.svg.classList.remove('react'), 400);
+}
+
+function alertMeerkat() {
+  const mk = pick(state.meerkats);
+  showSpeech(mk, pick(MEERKAT_PHRASES.alert), 800);
+}
+
+function showSpeech(mk, text, duration) {
+  mk.speech.textContent = text;
+  mk.speech.classList.add('show');
+  setTimeout(() => mk.speech.classList.remove('show'), duration);
+}
+
+// ─────────────────────────────────────────────
+//  BUGS
+// ─────────────────────────────────────────────
+let bugId = 0;
+
+function spawnBug() {
+  if (!state.running) return;
+  const cfg = DIFF[state.difficulty];
+  const field = document.getElementById('field');
+  const W = window.innerWidth, H = window.innerHeight;
+
+  const el = document.createElement('div');
+  el.className = 'bug';
+  el.textContent = pick(cfg.bugTypes);
+
+  // spawn on any edge
+  let x, y, vx, vy;
+  const edge = Math.floor(Math.random() * 4);
+  const spd = cfg.speed * (0.8 + Math.random() * 0.4);
+
+  if (edge === 0) { x = rand(0, W); y = -50; vx = rand(-1,1)*spd; vy = spd; }
+  else if (edge === 1) { x = W+10; y = rand(0, H*0.75); vx = -spd; vy = rand(-0.5,0.5)*spd; }
+  else if (edge === 2) { x = rand(0, W); y = H*0.75; vx = rand(-1,1)*spd; vy = -spd*0.5; }
+  else { x = -10; y = rand(0, H*0.75); vx = spd; vy = rand(-0.5,0.5)*spd; }
+
+  el.style.left = x + 'px';
+  el.style.top  = y + 'px';
+
+  const id = bugId++;
+  el.dataset.id = id;
+
+  el.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    squishBug(id, x, y);
+  });
+
+  field.appendChild(el);
+  state.bugs.push({ el, x, y, vx, vy, id, alive: true });
+}
+
+function squishBug(id, bx, by) {
+  const idx = state.bugs.findIndex(b => b.id === id);
+  if (idx < 0 || !state.bugs[idx].alive) return;
+
+  const bug = state.bugs[idx];
+  bug.alive = false;
+  bug.el.classList.add('squished');
+
+  const cfg = DIFF[state.difficulty];
+  state.score += cfg.pointPer;
+  updateHUD();
+
+  showScorePop(bx, by, '+' + cfg.pointPer);
+
+  // find nearest meerkat
+  const nearestMk = state.meerkats.reduce((best, mk) => {
+    const hx = mk.hole.offsetLeft;
+    const d = Math.abs(hx - bx);
+    return (!best || d < best.d) ? { mk, d } : best;
+  }, null)?.mk;
+  reactMeerkat(nearestMk);
+
+  setTimeout(() => {
+    bug.el.remove();
+    state.bugs.splice(state.bugs.findIndex(b => b.id === id), 1);
+  }, 400);
+}
+
+// ─────────────────────────────────────────────
+//  GAME LOOP
+// ─────────────────────────────────────────────
+function gameLoop() {
+  if (!state.running) return;
+
+  const W = window.innerWidth, H = window.innerHeight;
+  const toRemove = [];
+
+  state.bugs.forEach(bug => {
+    if (!bug.alive) return;
+    bug.x += bug.vx;
+    bug.y += bug.vy;
+    bug.el.style.left = bug.x + 'px';
+    bug.el.style.top  = bug.y + 'px';
+
+    // bounce off sides
+    if (bug.x < -60 || bug.x > W + 60 || bug.y < -60 || bug.y > H + 60) {
+      // escaped
+      bug.alive = false;
+      bug.el.remove();
+      toRemove.push(bug.id);
+
+      const cfg = DIFF[state.difficulty];
+      state.miss++;
+      updateHUD();
+      alertMeerkat();
+
+      if (state.miss >= cfg.maxMiss) {
+        endGame(false);
+        return;
+      }
+    }
+  });
+
+  toRemove.forEach(id => {
+    const i = state.bugs.findIndex(b => b.id === id);
+    if (i >= 0) state.bugs.splice(i, 1);
+  });
+
+  state.animFrame = requestAnimationFrame(gameLoop);
+}
+
+// ─────────────────────────────────────────────
+//  TIMERS
+// ─────────────────────────────────────────────
+function scheduleSpawn() {
+  if (!state.running) return;
+  const cfg = DIFF[state.difficulty];
+  spawnBug();
+  state.spawnTimer = setTimeout(scheduleSpawn, cfg.spawnMs * (0.7 + Math.random() * 0.6));
+}
+
+function startCountdown() {
+  state.countdownTimer = setInterval(() => {
+    if (!state.running) return;
+    state.timeLeft--;
+    updateHUD();
+    if (state.timeLeft <= 0) endGame(true);
+  }, 1000);
+}
+
+// ─────────────────────────────────────────────
+//  END
+// ─────────────────────────────────────────────
+function endGame(timeUp) {
+  state.running = false;
+  cancelAnimationFrame(state.animFrame);
+  clearTimeout(state.spawnTimer);
+  clearInterval(state.countdownTimer);
+
+  // remove leftover bugs
+  state.bugs.forEach(b => b.el.remove());
+  state.bugs = [];
+
+  // meerkats wave
+  state.meerkats.forEach((mk, i) => {
+    setTimeout(() => {
+      mk.svg.classList.add('react');
+      showSpeech(mk, timeUp ? '終了！' : 'もう！', 2000);
+      setTimeout(() => mk.svg.classList.remove('react'), 600);
+    }, i * 150);
+  });
+
+  setTimeout(() => {
+    const title = timeUp
+      ? (state.score >= 200 ? '🎉 すごい！' : '⏱ 時間切れ！')
+      : '💔 ゲームオーバー';
+    document.getElementById('result-title').textContent = title;
+    document.getElementById('result-score').innerHTML =
+      `スコア: <strong>${state.score}</strong> 点<br>
+       <small style="color:#ccc">逃がした虫: ${state.miss}匹</small>`;
+    document.getElementById('result-screen').style.display = 'flex';
+  }, 1200);
+}
+
+// ─────────────────────────────────────────────
+//  HUD
+// ─────────────────────────────────────────────
+function updateHUD() {
+  document.getElementById('timer').textContent = state.timeLeft;
+  document.getElementById('score').textContent = state.score;
+  document.getElementById('miss').textContent  = state.miss;
+  const cfg = DIFF[state.difficulty];
+  document.getElementById('timer-box').style.color =
+    state.timeLeft <= 10 ? '#ff6060' : '#ffd700';
+}
+
+// ─────────────────────────────────────────────
+//  SCORE POP
+// ─────────────────────────────────────────────
+function showScorePop(x, y, text) {
+  const el = document.createElement('div');
+  el.className = 'score-pop';
+  el.textContent = text;
+  el.style.left = (x + 10) + 'px';
+  el.style.top  = (y - 10) + 'px';
+  document.getElementById('field').appendChild(el);
+  setTimeout(() => el.remove(), 700);
+}
+
+// ─────────────────────────────────────────────
+//  CLOUDS
+// ─────────────────────────────────────────────
+function spawnClouds() {
+  document.querySelectorAll('.cloud').forEach(c => c.remove());
+  for (let i = 0; i < 5; i++) {
+    const c = document.createElement('div');
+    c.className = 'cloud';
+    const w = 80 + Math.random() * 120;
+    const h = w * 0.5;
+    c.style.width  = w + 'px';
+    c.style.height = h + 'px';
+    c.style.top    = (3 + Math.random() * 20) + '%';
+    c.style.left   = (Math.random() * 100) + 'vw';
+    const dur = 20 + Math.random() * 25;
+    c.style.animationDuration = dur + 's';
+    c.style.animationDelay   = -(Math.random() * dur) + 's';
+    document.getElementById('field').appendChild(c);
+  }
+}
+
+// ─────────────────────────────────────────────
+//  UTILS
+// ─────────────────────────────────────────────
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function rand(a, b) { return a + Math.random() * (b - a); }
+</script>
+</body>
+</html>
