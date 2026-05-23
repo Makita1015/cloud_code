@@ -361,32 +361,68 @@ def generate_reel_script(theme: str, client: anthropic.Anthropic) -> dict:
     return json.loads(text.strip())
 
 
-def create_reel(theme_index: int = None, account: str = "@makita.web") -> str:
+def _setup(theme_index: int, account: str):
     today = datetime.now(JST)
     if theme_index is None:
-        # Rotate themes based on day of year
         theme_index = today.timetuple().tm_yday % len(THEMES)
-
     theme = THEMES[theme_index]
     scheme = COLOR_SCHEMES[theme_index % len(COLOR_SCHEMES)]
+    date_str = today.strftime("%Y-%m-%d")
+    theme_slug = theme.replace("・", "_").replace("/", "_").replace(" ", "")[:20]
+    out_dir = f"reels/{date_str}_{theme_slug}"
+    os.makedirs(out_dir, exist_ok=True)
 
     print(f"テーマ: {theme}")
     print("台本生成中...")
-
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     script = generate_reel_script(theme, client)
 
-    print("動画フレーム作成中...")
-
+    print("スライド画像生成中...")
     hook_arr = make_hook_slide(script["hook"], scheme, theme, account)
-    content_arrs = []
-    for i, slide_data in enumerate(script["slides"], start=1):
-        arr = make_content_slide(slide_data, scheme, i, len(script["slides"]), account)
-        content_arrs.append(arr)
+    content_arrs = [
+        make_content_slide(s, scheme, i, len(script["slides"]), account)
+        for i, s in enumerate(script["slides"], start=1)
+    ]
     cta_arr = make_cta_slide(script["cta"], scheme, account)
-
-    # Build video
     all_frames = [hook_arr] + content_arrs + [cta_arr]
+
+    script_path = f"{out_dir}/script.json"
+    with open(script_path, "w", encoding="utf-8") as f:
+        json.dump({"theme": theme, "date": date_str, "script": script}, f, ensure_ascii=False, indent=2)
+
+    print(f"\n--- 生成された台本 ---")
+    print(f"フック: {script['hook']['title']}")
+    for i, s in enumerate(script["slides"], 1):
+        print(f"スライド{i}: {s['title']}")
+    print(f"CTA: {script['cta']['title']}")
+
+    return out_dir, all_frames, theme_slug
+
+
+def create_slides(theme_index: int = None, account: str = "@makita.web") -> str:
+    """スライド画像（PNG）のみ生成。GitHub Actions用。"""
+    out_dir, all_frames, _ = _setup(theme_index, account)
+
+    slide_names = ["01_hook"] + [f"{i+2:02d}_slide{i+1}" for i in range(len(all_frames) - 2)] + [f"{len(all_frames):02d}_cta"]
+    saved = []
+    for name, arr in zip(slide_names, all_frames):
+        path = f"{out_dir}/{name}.png"
+        Image.fromarray(arr).save(path)
+        saved.append(path)
+
+    print(f"\n完了! {len(saved)}枚のスライド画像を保存しました")
+    print(f"  フォルダ: {out_dir}/")
+    return out_dir
+
+
+def create_reel(theme_index: int = None, account: str = "@makita.web") -> str:
+    """スライド画像 + MP4動画を生成。ローカル実行用。"""
+    out_dir, all_frames, _ = _setup(theme_index, account)
+
+    slide_names = ["01_hook"] + [f"{i+2:02d}_slide{i+1}" for i in range(len(all_frames) - 2)] + [f"{len(all_frames):02d}_cta"]
+    for name, arr in zip(slide_names, all_frames):
+        Image.fromarray(arr).save(f"{out_dir}/{name}.png")
+
     clips = []
     for i, frame in enumerate(all_frames):
         clip = ImageClip(frame).with_duration(SLIDE_DURATION)
@@ -394,41 +430,25 @@ def create_reel(theme_index: int = None, account: str = "@makita.web") -> str:
             clip = clip.with_effects([vfx.FadeIn(0.4)])
         clips.append(clip)
 
-    final = concatenate_videoclips(clips, method="compose")
-
-    # Save
-    date_str = today.strftime("%Y-%m-%d")
-    theme_slug = theme.replace("・", "_").replace("/", "_").replace(" ", "")[:20]
-    out_dir = "reels"
-    os.makedirs(out_dir, exist_ok=True)
-    out_path = f"{out_dir}/{date_str}_{theme_slug}.mp4"
-    preview_path = f"{out_dir}/{date_str}_{theme_slug}_preview.png"
-
-    print(f"動画書き出し中: {out_path}")
-    final.write_videofile(out_path, fps=FPS, codec="libx264", audio=False, logger=None)
-
-    # Save preview (first frame)
-    Image.fromarray(hook_arr).save(preview_path)
-
-    # Save script as txt
-    script_path = f"{out_dir}/{date_str}_{theme_slug}_script.json"
-    with open(script_path, "w", encoding="utf-8") as f:
-        json.dump({"theme": theme, "date": date_str, "script": script}, f, ensure_ascii=False, indent=2)
+    mp4_path = f"{out_dir}/reel.mp4"
+    print(f"動画書き出し中: {mp4_path}")
+    concatenate_videoclips(clips, method="compose").write_videofile(
+        mp4_path, fps=FPS, codec="libx264", audio=False, logger=None
+    )
 
     print(f"\n完了!")
-    print(f"  動画: {out_path}")
-    print(f"  プレビュー画像: {preview_path}")
-    print(f"  台本JSON: {script_path}")
-    print(f"\n--- 生成された台本 ---")
-    print(f"フック: {script['hook']['title']}")
-    for i, s in enumerate(script["slides"], 1):
-        print(f"スライド{i}: {s['title']}")
-    print(f"CTA: {script['cta']['title']}")
-
-    return out_path
+    print(f"  フォルダ: {out_dir}/")
+    print(f"  動画: {mp4_path}")
+    return mp4_path
 
 
 if __name__ == "__main__":
     import sys
-    theme_idx = int(sys.argv[1]) if len(sys.argv) > 1 else None
-    create_reel(theme_index=theme_idx)
+    args = sys.argv[1:]
+    video_mode = "--video" in args
+    theme_idx = next((int(a) for a in args if a.isdigit()), None)
+
+    if video_mode:
+        create_reel(theme_index=theme_idx)
+    else:
+        create_slides(theme_index=theme_idx)

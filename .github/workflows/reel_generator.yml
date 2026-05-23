@@ -1,17 +1,17 @@
-name: Instagram Reel 毎日自動生成
+name: Instagram Reel スライド画像を毎日自動生成
 
 on:
   schedule:
-    - cron: '0 22 * * *'  # 毎日7:00 JST
+    - cron: '0 22 * * *'  # 毎日7:00 JST (UTC+9)
   workflow_dispatch:
     inputs:
       theme_index:
-        description: 'テーマ番号 (0-6, 空白=自動)'
+        description: 'テーマ番号 (0=制作実績 1=裏側 2=Tips 3=料金 4=失敗例 5=成功共通点 6=差がつくポイント)'
         required: false
         default: ''
 
 jobs:
-  generate-reel:
+  generate-slides:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -29,7 +29,7 @@ jobs:
       - name: 依存パッケージをインストール
         run: pip install -r requirements.txt
 
-      - name: リール動画を生成
+      - name: スライド画像を生成
         run: |
           if [ -n "${{ github.event.inputs.theme_index }}" ]; then
             python reel_generator.py ${{ github.event.inputs.theme_index }}
@@ -39,10 +39,10 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
-      - name: 生成ファイルをコミット・プッシュ
+      - name: 生成画像をコミット・プッシュ
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add reels/
-          git diff --cached --quiet || git commit -m "Add Instagram reel $(date +'%Y-%m-%d')"
+          git diff --cached --quiet || git commit -m "Add reel slides $(date +'%Y-%m-%d' --date='TZ=\"Asia/Tokyo\" now')"
           git push
