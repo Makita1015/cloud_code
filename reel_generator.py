@@ -18,6 +18,25 @@ REEL_W, REEL_H = 1080, 1920
 SLIDE_DURATION = 5
 FPS = 24
 
+# ---- デザイン定数 ----
+BG_COLOR   = (232, 214, 192)   # ライトウォームブラウン（背景）
+CARD_COLOR = (255, 255, 255)   # 白（カード）
+CARD_X     = 55                # カード左右マージン
+CARD_Y     = 140               # カード上下マージン
+CARD_W     = REEL_W - CARD_X * 2   # 970
+CARD_H     = REEL_H - CARD_Y * 2   # 1640
+CARD_R     = 38                # 角丸半径
+PAD_X      = 70                # カード内テキスト左右余白
+PAD_Y      = 80                # カード内テキスト上下余白
+
+TEXT_DARK   = (50, 28, 10)     # 濃い茶（本文・タイトル）
+TEXT_MED    = (110, 70, 35)    # 中茶（補助テキスト）
+TEXT_LIGHT  = (168, 130, 88)   # 薄茶（ヒント・ドット非活性）
+TEXT_RED    = (192, 50, 40)    # 赤（問題提起ラベル）
+TEXT_GREEN  = (40, 135, 72)    # 緑（解決策ラベル）
+DOT_ACTIVE  = (110, 70, 35)    # 進捗ドット（現在）
+DOT_INACTIVE = (195, 172, 148) # 進捗ドット（他）
+
 THEMES = [
     "新規集客を増やすホームページ活用術",
     "リピーター獲得のWeb戦略",
@@ -26,66 +45,6 @@ THEMES = [
     "SNSとホームページの使い分け",
     "口コミ・レビューを増やす仕組み",
     "競合サロンと差がつくポイント",
-]
-
-# 全テーマ共通：茶色ベース・白文字
-COLOR_SCHEMES = [
-    {  # ダークチョコレート
-        "bg": [(42, 22, 10), (78, 42, 18)],
-        "accent": (220, 168, 75),
-        "text": (255, 255, 255),
-        "sub": (225, 200, 170),
-        "badge_bg": (170, 108, 45),
-        "badge_text": (255, 255, 255),
-    },
-    {  # エスプレッソ
-        "bg": [(32, 18, 8), (68, 38, 16)],
-        "accent": (205, 155, 65),
-        "text": (255, 255, 255),
-        "sub": (215, 190, 158),
-        "badge_bg": (155, 95, 38),
-        "badge_text": (255, 255, 255),
-    },
-    {  # モカブラウン
-        "bg": [(55, 30, 14), (95, 55, 25)],
-        "accent": (235, 178, 85),
-        "text": (255, 255, 255),
-        "sub": (230, 205, 178),
-        "badge_bg": (185, 118, 50),
-        "badge_text": (255, 255, 255),
-    },
-    {  # マホガニー
-        "bg": [(50, 20, 14), (88, 38, 24)],
-        "accent": (218, 148, 72),
-        "text": (255, 255, 255),
-        "sub": (222, 195, 168),
-        "badge_bg": (168, 95, 42),
-        "badge_text": (255, 255, 255),
-    },
-    {  # ウォールナット
-        "bg": [(38, 25, 12), (72, 45, 20)],
-        "accent": (228, 172, 80),
-        "text": (255, 255, 255),
-        "sub": (218, 195, 162),
-        "badge_bg": (175, 110, 45),
-        "badge_text": (255, 255, 255),
-    },
-    {  # コーヒーブラウン
-        "bg": [(45, 25, 12), (82, 48, 22)],
-        "accent": (212, 160, 70),
-        "text": (255, 255, 255),
-        "sub": (220, 195, 165),
-        "badge_bg": (162, 100, 40),
-        "badge_text": (255, 255, 255),
-    },
-    {  # シナモン
-        "bg": [(62, 35, 16), (105, 62, 28)],
-        "accent": (242, 188, 92),
-        "text": (255, 255, 255),
-        "sub": (235, 210, 182),
-        "badge_bg": (192, 128, 55),
-        "badge_text": (255, 255, 255),
-    },
 ]
 
 FONT_PATHS = [
@@ -116,182 +75,207 @@ def jp_wrap(text: str, max_chars: int) -> list:
     return lines
 
 
-def gradient_image(w: int, h: int, top: tuple, bot: tuple) -> Image.Image:
-    img = Image.new("RGB", (w, h))
-    draw = ImageDraw.Draw(img)
-    for y in range(h):
-        t = y / h
-        r = int(top[0] + (bot[0] - top[0]) * t)
-        g = int(top[1] + (bot[1] - top[1]) * t)
-        b = int(top[2] + (bot[2] - top[2]) * t)
-        draw.line([(0, y), (w, y)], fill=(r, g, b))
-    return img
-
-
-def draw_centered(draw, text, font, y, color, shadow=True):
+def text_width(draw, text, font):
     bbox = draw.textbbox((0, 0), text, font=font)
-    tw = bbox[2] - bbox[0]
-    x = (REEL_W - tw) // 2
-    if shadow:
-        draw.text((x + 4, y + 4), text, font=font, fill=(0, 0, 0, 80))
+    return bbox[2] - bbox[0]
+
+
+def text_height(draw, text, font):
+    bbox = draw.textbbox((0, 0), text, font=font)
+    return bbox[3] - bbox[1]
+
+
+def draw_centered(draw, text, font, y, color):
+    bbox = draw.textbbox((0, 0), text, font=font)
+    x = (REEL_W - (bbox[2] - bbox[0])) // 2
     draw.text((x, y), text, font=font, fill=color)
     return bbox[3] - bbox[1]
 
 
-def progress_dots(draw, total, current, scheme):
-    dr = 13
-    dsp = 48
-    dtw = (total - 1) * dsp + dr * 2
-    dx = (REEL_W - dtw) // 2
-    dy = REEL_H - 90
+def draw_base(draw):
+    """背景とカードを描画する"""
+    draw.rectangle([(0, 0), (REEL_W, REEL_H)], fill=BG_COLOR)
+    draw.rounded_rectangle(
+        [(CARD_X, CARD_Y), (CARD_X + CARD_W, CARD_Y + CARD_H)],
+        radius=CARD_R, fill=CARD_COLOR
+    )
+
+
+def draw_progress(draw, total, current):
+    dr = 12
+    spacing = 46
+    total_w = (total - 1) * spacing + dr * 2
+    sx = (REEL_W - total_w) // 2
+    dy = CARD_Y + CARD_H - 62
     for i in range(total):
-        ex = dx + i * dsp + dr
-        col = scheme["accent"] if i == current else scheme["sub"]
+        ex = sx + i * spacing + dr
+        col = DOT_ACTIVE if i == current else DOT_INACTIVE
         draw.ellipse([(ex - dr, dy - dr), (ex + dr, dy + dr)], fill=col)
 
 
-def make_hook_slide(data: dict, scheme: dict, theme_name: str) -> np.ndarray:
-    img = gradient_image(REEL_W, REEL_H, scheme["bg"][0], scheme["bg"][1])
+# カード内のコンテンツ領域
+CONTENT_X     = CARD_X + PAD_X       # 125
+CONTENT_W     = CARD_W - PAD_X * 2   # 830
+CONTENT_TOP   = CARD_Y + PAD_Y       # 220
+CONTENT_BOT   = CARD_Y + CARD_H - PAD_Y - 80  # ドット領域分を残す
+CONTENT_H     = CONTENT_BOT - CONTENT_TOP      # 利用可能な高さ
+
+
+def vcenter_y(block_h: int) -> int:
+    """コンテンツブロックの高さから垂直中央のY座標を返す"""
+    return CONTENT_TOP + max(0, (CONTENT_H - block_h) // 2)
+
+
+def make_hook_slide(data: dict, theme_name: str) -> np.ndarray:
+    img = Image.new("RGB", (REEL_W, REEL_H))
     draw = ImageDraw.Draw(img)
+    draw_base(draw)
 
-    # アクセントバー（上下）
-    draw.rectangle([(0, 0), (REEL_W, 12)], fill=scheme["accent"])
-    draw.rectangle([(0, REEL_H - 12), (REEL_W, REEL_H)], fill=scheme["accent"])
+    # ---- コンテンツブロックの高さを計算 ----
+    badge_f  = get_font(46)
+    title_f  = get_font(96)
+    sub_f    = get_font(54)
+    hint_f   = get_font(44)
 
-    # テーマバッジ
-    bf = get_font(44)
-    bbox = draw.textbbox((0, 0), theme_name, font=bf)
-    bw = bbox[2] - bbox[0] + 90
-    bx = (REEL_W - bw) // 2
-    by = 190
-    draw.rounded_rectangle([(bx, by), (bx + bw, by + 85)], radius=42, fill=scheme["badge_bg"])
-    tbbox = draw.textbbox((0, 0), theme_name, font=bf)
-    draw.text(
-        (bx + (bw - (tbbox[2] - tbbox[0])) // 2, by + 20),
-        theme_name, font=bf, fill=scheme["badge_text"]
-    )
+    title_lines = jp_wrap(data.get("title", ""), 10)
+    sub_lines   = jp_wrap(data.get("subtitle", ""), 16)
 
-    # メインタイトル（大きく中央）
-    title = data.get("title", "")
-    tf = get_font(100)
-    t_lines = jp_wrap(title, 10)
-    line_h = 125
-    total_h = len(t_lines) * line_h
-    ty = (REEL_H - total_h) // 2 - 50
-    for line in t_lines[:5]:
-        draw_centered(draw, line, tf, ty, scheme["text"])
-        ty += line_h
+    gap = 38
+    badge_h  = text_height(draw, theme_name, badge_f) + 12
+    title_h  = len(title_lines) * 118
+    sub_h    = len(sub_lines) * 72 if sub_lines else 0
+    hint_h   = 58
+    block_h  = badge_h + gap + title_h + gap + sub_h + (gap if sub_lines else 0) + hint_h
+
+    ty = vcenter_y(block_h)
+
+    # テーマバッジ（茶色テキスト、下線のみ）
+    draw_centered(draw, theme_name, badge_f, ty, TEXT_MED)
+    tw = text_width(draw, theme_name, badge_f)
+    lx = (REEL_W - tw) // 2
+    line_y = ty + badge_h + 4
+    draw.rectangle([(lx, line_y), (lx + tw, line_y + 3)], fill=TEXT_LIGHT)
+    ty += badge_h + gap + 10
+
+    # メインタイトル（大・濃い茶）
+    for line in title_lines:
+        draw_centered(draw, line, title_f, ty, TEXT_DARK)
+        ty += 118
 
     # サブタイトル
-    subtitle = data.get("subtitle", "")
-    if subtitle:
-        sf = get_font(58)
-        sy = ty + 50
-        for line in jp_wrap(subtitle, 15)[:3]:
-            draw_centered(draw, line, sf, sy, scheme["sub"], shadow=False)
-            sy += 78
+    if sub_lines:
+        ty += gap
+        for line in sub_lines:
+            draw_centered(draw, line, sub_f, ty, TEXT_MED)
+            ty += 72
 
-    # スワイプ誘導
-    hf = get_font(46)
-    draw_centered(draw, "▼  続きを見る", hf, REEL_H - 210, scheme["accent"], shadow=False)
+    # スワイプヒント
+    ty += gap
+    draw_centered(draw, "▼  続きを見る", hint_f, ty, TEXT_LIGHT)
 
-    # プログレスドット（全4枚）
-    progress_dots(draw, 4, 0, scheme)
-
+    draw_progress(draw, 4, 0)
     return np.array(img)
 
 
-def make_body_slide(data: dict, scheme: dict, slide_type: str, dot_index: int) -> np.ndarray:
-    img = gradient_image(REEL_W, REEL_H, scheme["bg"][0], scheme["bg"][1])
+def make_body_slide(data: dict, slide_type: str, dot_index: int) -> np.ndarray:
+    img = Image.new("RGB", (REEL_W, REEL_H))
     draw = ImageDraw.Draw(img)
+    draw_base(draw)
 
-    draw.rectangle([(0, 0), (REEL_W, 12)], fill=scheme["accent"])
-    draw.rectangle([(0, REEL_H - 12), (REEL_W, REEL_H)], fill=scheme["accent"])
+    label_f  = get_font(50)
+    title_f  = get_font(84)
+    body_f   = get_font(62)
 
     if slide_type == "problem":
-        label = "こんな悩みありませんか？"
-        label_bg = (160, 65, 50)   # 赤みがかったブラウン
+        label      = "こんな悩みありませんか？"
+        label_col  = TEXT_RED
     else:
-        label = "ホームページで解決！"
-        label_bg = (65, 130, 90)   # 緑がかったアクセント
+        label      = "ホームページで解決！"
+        label_col  = TEXT_GREEN
 
-    # ラベルバー（上部）
-    lf = get_font(50)
-    lbbox = draw.textbbox((0, 0), label, font=lf)
-    lw = lbbox[2] - lbbox[0] + 80
-    lx = (REEL_W - lw) // 2
-    draw.rounded_rectangle([(lx, 160), (lx + lw, 255)], radius=44, fill=label_bg)
-    draw.text(
-        (lx + (lw - (lbbox[2] - lbbox[0])) // 2, 175),
-        label, font=lf, fill=(255, 255, 255)
-    )
+    title_lines = jp_wrap(data.get("title", ""), 12)
+    body_lines  = jp_wrap(data.get("body", ""), 13)
 
-    # タイトル
-    title = data.get("title", "")
-    tf = get_font(86)
-    ty = 300
-    for line in jp_wrap(title, 12)[:3]:
-        draw_centered(draw, line, tf, ty, scheme["text"])
-        ty += 108
-    ty += 20
+    gap = 36
+    label_h  = text_height(draw, label, label_f) + 8
+    title_h  = len(title_lines) * 102
+    div_h    = 28
+    body_h   = len(body_lines) * 84
+    block_h  = label_h + gap + title_h + div_h + gap + body_h
+
+    ty = vcenter_y(block_h)
+
+    # ラベル（赤 or 緑のテキスト、シンプルに）
+    draw_centered(draw, label, label_f, ty, label_col)
+    ty += label_h + gap
+
+    # タイトル（濃い茶）
+    for line in title_lines:
+        draw_centered(draw, line, title_f, ty, TEXT_DARK)
+        ty += 102
 
     # 区切り線
-    draw.rectangle([(60, ty), (REEL_W - 60, ty + 6)], fill=scheme["accent"])
-    ty += 55
+    ty += 10
+    line_w = 480
+    draw.rectangle(
+        [((REEL_W - line_w) // 2, ty), ((REEL_W + line_w) // 2, ty + 4)],
+        fill=TEXT_LIGHT
+    )
+    ty += div_h + gap - 10
 
-    # 本文（大きめフォント）
-    body = data.get("body", "")
-    bf = get_font(64)
-    for line in jp_wrap(body, 14)[:7]:
-        draw.text((60, ty), line, font=bf, fill=scheme["text"])
-        ty += 88
+    # 本文（中茶、左寄せ）
+    bx = CONTENT_X + 20
+    for line in body_lines:
+        draw.text((bx, ty), line, font=body_f, fill=TEXT_MED)
+        ty += 84
 
-    # プログレスドット
-    progress_dots(draw, 4, dot_index, scheme)
-
+    draw_progress(draw, 4, dot_index)
     return np.array(img)
 
 
-def make_cta_slide(data: dict, scheme: dict) -> np.ndarray:
-    img = gradient_image(REEL_W, REEL_H, scheme["bg"][0], scheme["bg"][1])
+def make_cta_slide(data: dict) -> np.ndarray:
+    img = Image.new("RGB", (REEL_W, REEL_H))
     draw = ImageDraw.Draw(img)
+    draw_base(draw)
 
-    draw.rectangle([(0, 0), (REEL_W, 12)], fill=scheme["accent"])
-    draw.rectangle([(0, REEL_H - 12), (REEL_W, REEL_H)], fill=scheme["accent"])
+    title_f = get_font(90)
+    item_f  = get_font(52)
 
-    # メインメッセージ
-    title = data.get("title", "まずは無料相談\nプロフのリンクから")
-    tf = get_font(92)
-    t_lines = jp_wrap(title, 11)
-    ty = REEL_H // 5
-    for line in t_lines[:5]:
-        draw_centered(draw, line, tf, ty, scheme["text"])
-        ty += 118
-    ty += 50
-
-    # 区切り線
-    draw.rectangle([(120, ty), (REEL_W - 120, ty + 5)], fill=scheme["accent"])
-    ty += 60
-
-    # CTAボタン
+    title_lines = jp_wrap(data.get("title", "まず無料相談\nプロフのリンクから"), 11)
     cta_items = [
         "無料相談はプロフのリンクから",
         "いいね・保存で後から見返せる",
         "フォローで毎日更新をお届け",
     ]
-    cbf = get_font(52)
+
+    gap = 40
+    title_h = len(title_lines) * 112
+    div_h   = 28
+    items_h = len(cta_items) * 80
+    block_h = title_h + gap + div_h + gap + items_h
+
+    ty = vcenter_y(block_h)
+
+    # メインメッセージ
+    for line in title_lines:
+        draw_centered(draw, line, title_f, ty, TEXT_DARK)
+        ty += 112
+
+    # 区切り線
+    ty += gap
+    line_w = 560
+    draw.rectangle(
+        [((REEL_W - line_w) // 2, ty), ((REEL_W + line_w) // 2, ty + 4)],
+        fill=TEXT_LIGHT
+    )
+    ty += div_h + gap
+
+    # CTAアイテム（茶色テキスト、シンプル）
     for item in cta_items:
-        bw = 940
-        bx = (REEL_W - bw) // 2
-        draw.rounded_rectangle([(bx, ty - 14), (bx + bw, ty + 72)], radius=46, fill=scheme["badge_bg"])
-        cbbox = draw.textbbox((0, 0), item, font=cbf)
-        cw = cbbox[2] - cbbox[0]
-        draw.text(((REEL_W - cw) // 2, ty + 6), item, font=cbf, fill=scheme["badge_text"])
-        ty += 118
+        draw_centered(draw, item, item_f, ty, TEXT_MED)
+        ty += 80
 
-    # プログレスドット
-    progress_dots(draw, 4, 3, scheme)
-
+    draw_progress(draw, 4, 3)
     return np.array(img)
 
 
@@ -309,11 +293,11 @@ def generate_reel_script(theme: str, client: anthropic.Anthropic) -> dict:
   }},
   "problem": {{
     "title": "（問題提起のタイトル。12文字以内）",
-    "body": "（悩み・課題を箇条書き。・で始め1行13文字以内で4〜5行。改行は\\nで）"
+    "body": "（悩み・課題を箇条書き。・で始め1行12文字以内で4〜5行。改行は\\nで）"
   }},
   "solution": {{
     "title": "（解決策のタイトル。12文字以内）",
-    "body": "（解決策を箇条書き。・で始め1行13文字以内で4〜5行。改行は\\nで）"
+    "body": "（解決策を箇条書き。・で始め1行12文字以内で4〜5行。改行は\\nで）"
   }},
   "cta": {{
     "title": "（締めメッセージ。10文字以内・改行あり可）"
@@ -345,7 +329,6 @@ def _setup(theme_index: int):
         theme_index = today.timetuple().tm_yday % len(THEMES)
 
     theme = THEMES[theme_index]
-    scheme = COLOR_SCHEMES[theme_index % len(COLOR_SCHEMES)]
     date_str = today.strftime("%Y-%m-%d")
     theme_slug = theme.replace("・", "_").replace("/", "_").replace(" ", "")[:20]
     out_dir = f"reels/{date_str}_{theme_slug}"
@@ -358,10 +341,10 @@ def _setup(theme_index: int):
 
     print("スライド画像生成中...")
     frames = [
-        make_hook_slide(script["hook"], scheme, theme),
-        make_body_slide(script["problem"], scheme, "problem", 1),
-        make_body_slide(script["solution"], scheme, "solution", 2),
-        make_cta_slide(script["cta"], scheme),
+        make_hook_slide(script["hook"], theme),
+        make_body_slide(script["problem"], "problem", 1),
+        make_body_slide(script["solution"], "solution", 2),
+        make_cta_slide(script["cta"]),
     ]
 
     script_path = f"{out_dir}/script.json"
