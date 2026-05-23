@@ -371,6 +371,46 @@ def create_slides(theme_index: int = None) -> str:
     return out_dir
 
 
+def create_slides_from_dict(script: dict, theme: str, out_dir: str = None) -> str:
+    """
+    台本dictを直接渡してスライド画像を生成する。
+    Claude Codeのチャットから内容を指定するときに使う。
+
+    script の形式:
+    {
+        "hook":     {"title": "...", "subtitle": "..."},
+        "problem":  {"title": "...", "body": "..."},
+        "solution": {"title": "...", "body": "..."},
+        "cta":      {"title": "..."}
+    }
+    """
+    today = datetime.now(JST)
+    date_str = today.strftime("%Y-%m-%d")
+    if out_dir is None:
+        slug = theme.replace("・", "_").replace("/", "_").replace(" ", "")[:20]
+        out_dir = f"reels/{date_str}_{slug}"
+    os.makedirs(out_dir, exist_ok=True)
+
+    frames = [
+        make_hook_slide(script["hook"], theme),
+        make_body_slide(script["problem"], "problem", 1),
+        make_body_slide(script["solution"], "solution", 2),
+        make_cta_slide(script["cta"]),
+    ]
+    names = ["01_hook", "02_problem", "03_solution", "04_cta"]
+    paths = []
+    for name, arr in zip(names, frames):
+        path = f"{out_dir}/{name}.png"
+        Image.fromarray(arr).save(path)
+        paths.append(path)
+
+    with open(f"{out_dir}/script.json", "w", encoding="utf-8") as f:
+        json.dump({"theme": theme, "date": date_str, "script": script}, f, ensure_ascii=False, indent=2)
+
+    print(f"完了! {out_dir}/")
+    return out_dir
+
+
 def create_reel(theme_index: int = None) -> str:
     """スライド画像 + MP4動画を生成。ローカル実行用。"""
     out_dir, frames = _setup(theme_index)
