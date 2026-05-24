@@ -19,7 +19,7 @@ SLIDE_DURATION = 5
 FPS = 24
 
 # ---- デザイン定数 ----
-BG_COLOR   = (232, 214, 192)   # ライトウォームブラウン（背景）
+BG_COLOR   = (195, 168, 138)   # ミディアムウォームブラウン（背景）
 CARD_COLOR = (255, 255, 255)   # 白（カード）
 CARD_X     = 55                # カード左右マージン
 CARD_Y     = 140               # カード上下マージン
@@ -144,8 +144,7 @@ def make_hook_slide(data: dict, theme_name: str) -> np.ndarray:
     badge_h  = text_height(draw, theme_name, badge_f) + 12
     title_h  = len(title_lines) * 118
     sub_h    = len(sub_lines) * 72 if sub_lines else 0
-    hint_h   = 58
-    block_h  = badge_h + gap + title_h + gap + sub_h + (gap if sub_lines else 0) + hint_h
+    block_h  = badge_h + gap + title_h + (gap + sub_h if sub_lines else 0)
 
     ty = vcenter_y(block_h)
 
@@ -168,10 +167,6 @@ def make_hook_slide(data: dict, theme_name: str) -> np.ndarray:
         for line in sub_lines:
             draw_centered(draw, line, sub_f, ty, TEXT_MED)
             ty += 72
-
-    # スワイプヒント
-    ty += gap
-    draw_centered(draw, "▼  続きを見る", hint_f, ty, TEXT_LIGHT)
 
     draw_progress(draw, 4, 0)
     return np.array(img)
@@ -243,7 +238,7 @@ def make_cta_slide(data: dict) -> np.ndarray:
 
     title_lines = jp_wrap(data.get("title", "まず無料相談\nプロフのリンクから"), 11)
     cta_items = [
-        "無料相談はプロフのリンクから",
+        "DMからお気軽にどうぞ",
         "いいね・保存で後から見返せる",
         "フォローで毎日更新をお届け",
     ]
