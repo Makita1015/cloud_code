@@ -177,36 +177,44 @@ def make_body_slide(data: dict, slide_type: str, dot_index: int) -> np.ndarray:
     draw = ImageDraw.Draw(img)
     draw_base(draw)
 
-    label_f  = get_font(50)
+    label_f  = get_font(46)
     title_f  = get_font(84)
-    body_f   = get_font(62)
 
     if slide_type == "problem":
-        label     = "こんな悩みありませんか？"
-        label_bg  = TEXT_RED
+        label      = "こんな悩みありませんか？"
+        bar_color  = TEXT_RED
     else:
-        label     = "ホームページで解決！"
-        label_bg  = TEXT_GREEN
+        label      = "ホームページで解決！"
+        bar_color  = TEXT_GREEN
 
     title_lines = jp_wrap(data.get("title", ""), 12)
-    body_lines  = jp_wrap(data.get("body", ""), 13)
+
+    # 箇条書きは \n で分割するだけ（改行しない）
+    body_lines = [l.strip() for l in data.get("body", "").split("\n") if l.strip()]
+
+    # 最長行に合わせてフォントサイズを自動調整（最大62px）
+    max_len = max(len(l) for l in body_lines) if body_lines else 1
+    body_size = min(62, int(CONTENT_W / max_len * 1.05))
+    body_f = get_font(body_size)
+    body_line_h = int(body_size * 1.45)
 
     gap = 36
-    label_h  = text_height(draw, label, label_f) + 28   # ボックス分の余白込み
+    label_h  = text_height(draw, label, label_f) + 14
     title_h  = len(title_lines) * 102
     div_h    = 28
-    body_h   = len(body_lines) * 84
+    body_h   = len(body_lines) * body_line_h
     block_h  = label_h + gap + title_h + div_h + gap + body_h
 
     ty = vcenter_y(block_h)
 
-    # ラベル（色付きボックス＋白文字）
+    # ラベル：左に細い縦バー＋テキスト
     lbbox = draw.textbbox((0, 0), label, font=label_f)
     lw = lbbox[2] - lbbox[0]
-    bw = lw + 80
-    bx = (REEL_W - bw) // 2
-    draw.rounded_rectangle([(bx, ty), (bx + bw, ty + label_h)], radius=label_h // 2, fill=label_bg)
-    draw.text((bx + (bw - lw) // 2, ty + 14), label, font=label_f, fill=(255, 255, 255))
+    lh = lbbox[3] - lbbox[1]
+    bar_w = 7
+    lx = (REEL_W - lw - bar_w - 18) // 2
+    draw.rectangle([(lx, ty), (lx + bar_w, ty + lh + 10)], fill=bar_color)
+    draw.text((lx + bar_w + 18, ty + 4), label, font=label_f, fill=bar_color)
     ty += label_h + gap
 
     # タイトル（濃い茶）
@@ -223,11 +231,11 @@ def make_body_slide(data: dict, slide_type: str, dot_index: int) -> np.ndarray:
     )
     ty += div_h + gap - 10
 
-    # 本文（中茶、左寄せ）
+    # 本文（左寄せ、改行なし）
     bx = CONTENT_X + 20
     for line in body_lines:
         draw.text((bx, ty), line, font=body_f, fill=TEXT_MED)
-        ty += 84
+        ty += body_line_h
 
     draw_progress(draw, 4, dot_index)
     return np.array(img)
