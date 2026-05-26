@@ -182,17 +182,17 @@ def make_body_slide(data: dict, slide_type: str, dot_index: int) -> np.ndarray:
     body_f   = get_font(62)
 
     if slide_type == "problem":
-        label      = "こんな悩みありませんか？"
-        label_col  = TEXT_RED
+        label     = "こんな悩みありませんか？"
+        label_bg  = TEXT_RED
     else:
-        label      = "ホームページで解決！"
-        label_col  = TEXT_GREEN
+        label     = "ホームページで解決！"
+        label_bg  = TEXT_GREEN
 
     title_lines = jp_wrap(data.get("title", ""), 12)
     body_lines  = jp_wrap(data.get("body", ""), 13)
 
     gap = 36
-    label_h  = text_height(draw, label, label_f) + 8
+    label_h  = text_height(draw, label, label_f) + 28   # ボックス分の余白込み
     title_h  = len(title_lines) * 102
     div_h    = 28
     body_h   = len(body_lines) * 84
@@ -200,8 +200,13 @@ def make_body_slide(data: dict, slide_type: str, dot_index: int) -> np.ndarray:
 
     ty = vcenter_y(block_h)
 
-    # ラベル（赤 or 緑のテキスト、シンプルに）
-    draw_centered(draw, label, label_f, ty, label_col)
+    # ラベル（色付きボックス＋白文字）
+    lbbox = draw.textbbox((0, 0), label, font=label_f)
+    lw = lbbox[2] - lbbox[0]
+    bw = lw + 80
+    bx = (REEL_W - bw) // 2
+    draw.rounded_rectangle([(bx, ty), (bx + bw, ty + label_h)], radius=label_h // 2, fill=label_bg)
+    draw.text((bx + (bw - lw) // 2, ty + 14), label, font=label_f, fill=(255, 255, 255))
     ty += label_h + gap
 
     # タイトル（濃い茶）
