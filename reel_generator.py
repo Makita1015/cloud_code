@@ -237,7 +237,7 @@ def make_body_slide(data: dict, slide_type: str, dot_index: int) -> np.ndarray:
         draw.text((bx, ty), line, font=body_f, fill=TEXT_MED)
         ty += body_line_h
 
-    draw_progress(draw, 4, dot_index)
+    draw_progress(draw, 5, dot_index)
     return np.array(img)
 
 
@@ -283,7 +283,41 @@ def make_cta_slide(data: dict) -> np.ndarray:
         draw_centered(draw, item, item_f, ty, TEXT_MED)
         ty += 80
 
-    draw_progress(draw, 4, 3)
+    draw_progress(draw, 5, 4)
+    return np.array(img)
+
+
+def make_profile_slide() -> np.ndarray:
+    img = Image.new("RGB", (REEL_W, REEL_H))
+    draw = ImageDraw.Draw(img)
+    draw_base(draw)
+
+    main_f = get_font(80)
+    sub_f  = get_font(52)
+
+    lines   = ["詳細は", "プロフィールリンク", "からどうぞ"]
+    line_h  = 105
+    gap     = 50
+    arrow_h = 70
+    sub_h   = 65
+    block_h = len(lines) * line_h + gap + arrow_h + gap + sub_h
+
+    ty = vcenter_y(block_h)
+
+    for line in lines:
+        draw_centered(draw, line, main_f, ty, TEXT_DARK)
+        ty += line_h
+
+    ty += gap
+
+    # 矢印（シンプルな下向き）
+    arrow_f = get_font(68)
+    draw_centered(draw, "↓", arrow_f, ty, TEXT_MED)
+    ty += arrow_h + gap
+
+    draw_centered(draw, "プロフのリンクをタップ", sub_f, ty, TEXT_LIGHT)
+
+    draw_progress(draw, 5, 3)
     return np.array(img)
 
 
@@ -352,6 +386,7 @@ def _setup(theme_index: int):
         make_hook_slide(script["hook"], theme),
         make_body_slide(script["problem"], "problem", 1),
         make_body_slide(script["solution"], "solution", 2),
+        make_profile_slide(),
         make_cta_slide(script["cta"]),
     ]
 
@@ -371,7 +406,7 @@ def _setup(theme_index: int):
 def create_slides(theme_index: int = None) -> str:
     """スライド画像（PNG）のみ生成。GitHub Actions用。"""
     out_dir, frames = _setup(theme_index)
-    names = ["01_hook", "02_problem", "03_solution", "04_cta"]
+    names = ["01_hook", "02_problem", "03_solution", "04_profile", "05_cta"]
     for name, arr in zip(names, frames):
         Image.fromarray(arr).save(f"{out_dir}/{name}.png")
     print(f"\n完了! 4枚のスライド画像を保存しました")
@@ -403,9 +438,10 @@ def create_slides_from_dict(script: dict, theme: str, out_dir: str = None) -> st
         make_hook_slide(script["hook"], theme),
         make_body_slide(script["problem"], "problem", 1),
         make_body_slide(script["solution"], "solution", 2),
+        make_profile_slide(),
         make_cta_slide(script["cta"]),
     ]
-    names = ["01_hook", "02_problem", "03_solution", "04_cta"]
+    names = ["01_hook", "02_problem", "03_solution", "04_profile", "05_cta"]
     paths = []
     for name, arr in zip(names, frames):
         path = f"{out_dir}/{name}.png"
@@ -422,7 +458,7 @@ def create_slides_from_dict(script: dict, theme: str, out_dir: str = None) -> st
 def create_reel(theme_index: int = None) -> str:
     """スライド画像 + MP4動画を生成。ローカル実行用。"""
     out_dir, frames = _setup(theme_index)
-    names = ["01_hook", "02_problem", "03_solution", "04_cta"]
+    names = ["01_hook", "02_problem", "03_solution", "04_profile", "05_cta"]
     for name, arr in zip(names, frames):
         Image.fromarray(arr).save(f"{out_dir}/{name}.png")
 
